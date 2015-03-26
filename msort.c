@@ -26,7 +26,8 @@
 /*
 ** Return a pointer to the next structure in the linked list.
 */
-#define NEXT(A) (*(char**)(((char*)A)+offset))
+#define LISTSIZE 30
+#define NEXT(A) (*(char **)(((char *)A) + offset))
 
 /*
 ** Inputs:
@@ -43,42 +44,40 @@
 **   The "next" pointers for elements in the lists a and b are
 **   changed.
 */
-static char *merge(
-        char *a,
-        char *b,
-        int (*cmp)(const char*,const char*),
-        size_t offset
-){
-    char *ptr, *head;
+static char *
+merge(char *a, char *b, int (*cmp)(const char *, const char *), size_t offset) {
+  char *ptr, *head;
 
-    if( a==0 ){
-        head = b;
-    }else if( b==0 ){
-        head = a;
-    }else{
-        if( (*cmp)(a,b)<=0 ){
-            ptr = a;
-            a = NEXT(a);
-        }else{
-            ptr = b;
-            b = NEXT(b);
-        }
-        head = ptr;
-        while( a && b ){
-            if( (*cmp)(a,b)<=0 ){
-                NEXT(ptr) = a;
-                ptr = a;
-                a = NEXT(a);
-            }else{
-                NEXT(ptr) = b;
-                ptr = b;
-                b = NEXT(b);
-            }
-        }
-        if( a ) NEXT(ptr) = a;
-        else    NEXT(ptr) = b;
+  if (a == 0) {
+    head = b;
+  } else if (b == 0) {
+    head = a;
+  } else {
+    if ((*cmp)(a, b) <= 0) {
+      ptr = a;
+      a = NEXT(a);
+    } else {
+      ptr = b;
+      b = NEXT(b);
     }
-    return head;
+    head = ptr;
+    while (a && b) {
+      if ((*cmp)(a, b) <= 0) {
+        NEXT(ptr) = a;
+        ptr = a;
+        a = NEXT(a);
+      } else {
+        NEXT(ptr) = b;
+        ptr = b;
+        b = NEXT(b);
+      }
+    }
+    if (a)
+      NEXT(ptr) = a;
+    else
+      NEXT(ptr) = b;
+  }
+  return head;
 }
 
 /*
@@ -94,29 +93,28 @@ static char *merge(
 ** Side effects:
 **   The "next" pointers for elements in list are changed.
 */
-#define LISTSIZE 30
-char *msort(
-        char *list,
-        char **next,
-        int (*cmp)(const char*,const char*)
-){
-    size_t offset;
-    char *ep;
-    char *set[LISTSIZE];
-    int i;
-    offset = (size_t)next - (size_t)list;
-    for(i=0; i<LISTSIZE; i++) set[i] = 0;
-    while( list ){
-        ep = list;
-        list = NEXT(list);
-        NEXT(ep) = 0;
-        for(i=0; i<LISTSIZE-1 && set[i]!=0; i++){
-            ep = merge(ep,set[i],cmp,offset);
-            set[i] = 0;
-        }
-        set[i] = ep;
+char *
+msort(char *list, char **next, int (*cmp)(const char *, const char *)) {
+  size_t offset;
+  char *ep;
+  char *set[LISTSIZE];
+  int i;
+  offset = (size_t)next - (size_t)list;
+  for (i = 0; i < LISTSIZE; i++)
+    set[i] = 0;
+  while (list) {
+    ep = list;
+    list = NEXT(list);
+    NEXT(ep) = 0;
+    for (i = 0; i < LISTSIZE - 1 && set[i] != 0; i++) {
+      ep = merge(ep, set[i], cmp, offset);
+      set[i] = 0;
     }
-    ep = 0;
-    for(i=0; i<LISTSIZE; i++) if( set[i] ) ep = merge(set[i],ep,cmp,offset);
-    return ep;
+    set[i] = ep;
+  }
+  ep = 0;
+  for (i = 0; i < LISTSIZE; i++)
+    if (set[i])
+      ep = merge(set[i], ep, cmp, offset);
+  return ep;
 }
