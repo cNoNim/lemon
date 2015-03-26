@@ -937,16 +937,6 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
   lineno = 1;
   tplt_xfer(lemp->name, in, out, &lineno);
 
-  /* Generate the include code, if any */
-  tplt_print(out, lemp, lemp->include, &lineno);
-  if (mhflag) {
-    char *nm = file_makename(lemp, ".h");
-    fprintf(out, "#include \"%s\"\n", nm);
-    lineno++;
-    free(nm);
-  }
-  tplt_xfer(lemp->name, in, out, &lineno);
-
   /* Generate #defines for all tokens */
   if (mhflag) {
     const char *prefix;
@@ -1035,6 +1025,16 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
   if (lemp->has_fallback) {
     fprintf(out, "#define YYFALLBACK 1\n");
     lineno++;
+  }
+  tplt_xfer(lemp->name, in, out, &lineno);
+
+  /* Generate the include code, if any */
+  tplt_print(out, lemp, lemp->include, &lineno);
+  if (mhflag) {
+    char *nm = file_makename(lemp, ".h");
+    fprintf(out, "#include \"%s\"\n", nm);
+    lineno++;
+    free(nm);
   }
   tplt_xfer(lemp->name, in, out, &lineno);
 
