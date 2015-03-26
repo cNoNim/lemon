@@ -148,42 +148,6 @@ void ConfigPrint(FILE *fp, struct config *cfp)
     }
 }
 
-/* #define TEST */
-#if 0
-/* Print a set */
-static void SetPrint(out,set,lemp)
-FILE *out;
-char *set;
-struct lemon *lemp;
-{
-  int i;
-  char *spacer;
-  spacer = "";
-  fprintf(out,"%12s[","");
-  for(i=0; i<lemp->nterminal; i++){
-    if( SetFind(set,i) ){
-      fprintf(out,"%s%s",spacer,lemp->symbols[i]->name);
-      spacer = " ";
-    }
-  }
-  fprintf(out,"]\n");
-}
-
-/* Print a plink chain */
-static void PlinkPrint(out,plp,tag)
-FILE *out;
-struct plink *plp;
-char *tag;
-{
-  while( plp ){
-    fprintf(out,"%12s%s (state %2d) ","",tag,plp->cfp->stp->statenum);
-    ConfigPrint(out,plp->cfp);
-    fprintf(out,"\n");
-    plp = plp->next;
-  }
-}
-#endif
-
 /* Print an action to the given file descriptor.  Return FALSE if
 ** nothing was actually printed.
 */

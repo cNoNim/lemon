@@ -83,6 +83,27 @@ struct state {
     int iDflt;               /* Default action */
 };
 
+/* A configuration is a production rule of the grammar together with
+** a mark (dot) showing how much of that rule has been processed so far.
+** Configurations also contain a follow-set which is a list of terminal
+** symbols which are allowed to immediately follow the end of the rule.
+** Every configuration is recorded as an instance of the following: */
+enum cfgstatus {
+    COMPLETE,
+    INCOMPLETE
+};
+struct config {
+    struct rule *rp;         /* The rule upon which the configuration is based */
+    int dot;                 /* The parse point */
+    char *fws;               /* Follow-set for this configuration only */
+    struct plink *fplp;      /* Follow-set forward propagation links */
+    struct plink *bplp;      /* Follow-set backwards propagation links */
+    struct state *stp;       /* Pointer to state which contains this */
+    enum cfgstatus status;   /* used during followset and shift computations */
+    struct config *next;     /* Next configuration in the state */
+    struct config *bp;       /* The next basis configuration */
+};
+
 /*
 ** Code for processing tables in the LEMON parser generator.
 */

@@ -20,53 +20,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MemoryCheck(X) if((X)==0){ \
+  extern void memory_error(); \
+  memory_error(); \
+}
+
 /*
 ** Main program file for the LEMON parser generator.
 */
 
-/* Report an out-of-memory condition and abort.  This function
-** is used mostly by the "MemoryCheck" macro in struct.h
-*/
-void memory_error(){
-  fprintf(stderr,"Out of memory.  Aborting...\n");
-  exit(1);
-}
+/* forward declaration */
+static void handle_D_option(char *);
+static void handle_T_option(char *);
 
 int nDefine = 0;      /* Number of -D options on the command line */
 char **azDefine = 0;  /* Name of the -D macros */
-
-/* This routine is called with the argument to each -D command-line option.
-** Add the macro defined to the azDefine array.
-*/
-static void handle_D_option(char *z){
-  char **paz;
-  nDefine++;
-  azDefine = (char **) realloc(azDefine, sizeof(azDefine[0])*nDefine);
-  if( azDefine==0 ){
-    fprintf(stderr,"out of memory\n");
-    exit(1);
-  }
-  paz = &azDefine[nDefine-1];
-  *paz = (char *) malloc( strlen(z)+1 );
-  if( *paz==0 ){
-    fprintf(stderr,"out of memory\n");
-    exit(1);
-  }
-  strcpy(*paz, z);
-  for(z=*paz; *z && *z!='='; z++){}
-  *z = 0;
-}
-
-char *user_templatename = NULL;
-static void handle_T_option(char *z){
-  user_templatename = (char *) malloc( strlen(z)+1 );
-  if( user_templatename==0 ){
-    memory_error();
-  }
-  strcpy(user_templatename, z);
-}
-
 int showPrecedenceConflict = 0;
+char *user_templatename = NULL;
+
 /* The main program.  Parse the command line and do it... */
 int main(int argc, char **argv)
 {
@@ -210,4 +181,32 @@ int main(int argc, char **argv)
   /* return 0 on success, 1 on failure. */
   exitcode = ((lem.errorcnt > 0) || (lem.nconflict > 0)) ? 1 : 0;
   return (exitcode);
+}
+
+/* This routine is called with the argument to each -D command-line option.
+** Add the macro defined to the azDefine array.
+*/
+static void handle_D_option(char *z){
+  char **paz;
+  nDefine++;
+  azDefine = (char **) realloc(azDefine, sizeof(azDefine[0])*nDefine);
+  if( azDefine==0 ){
+    fprintf(stderr,"out of memory\n");
+    exit(1);
+  }
+  paz = &azDefine[nDefine-1];
+  *paz = (char *) malloc( strlen(z)+1 );
+  if( *paz==0 ){
+    fprintf(stderr,"out of memory\n");
+    exit(1);
+  }
+  strcpy(*paz, z);
+  for(z=*paz; *z && *z!='='; z++){}
+  *z = 0;
+}
+
+static void handle_T_option(char *z){
+  user_templatename = (char *) malloc( strlen(z)+1 );
+  MemoryCheck(user_templatename);
+  strcpy(user_templatename, z);
 }

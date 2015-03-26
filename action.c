@@ -9,6 +9,8 @@
 ** Routines processing parser actions in the LEMON parser generator.
 */
 
+static int actioncmp(struct action *, struct action *);
+
 /* Allocate a new parser action */
 struct action *Action_new(void){
     static struct action *freelist = 0;
@@ -28,6 +30,34 @@ struct action *Action_new(void){
     newaction = freelist;
     freelist = freelist->next;
     return newaction;
+}
+
+void Action_add(
+        struct action **app,
+        enum e_action type,
+        struct symbol *sp,
+        char *arg
+){
+    struct action *newaction;
+    newaction = Action_new();
+    newaction->next = *app;
+    *app = newaction;
+    newaction->type = type;
+    newaction->sp = sp;
+    if( type==SHIFT ){
+        newaction->x.stp = (struct state *)arg;
+    }else{
+        newaction->x.rp = (struct rule *)arg;
+    }
+}
+
+/* Sort parser actions */
+struct action *Action_sort(
+        struct action *ap
+){
+    ap = (struct action *)msort((char *)ap,(char **)&ap->next,
+            (int(*)(const char*,const char*))actioncmp);
+    return ap;
 }
 
 /* Compare two actions for sorting purposes.  Return negative, zero, or
@@ -52,30 +82,3 @@ static int actioncmp(
     return rc;
 }
 
-/* Sort parser actions */
-struct action *Action_sort(
-        struct action *ap
-){
-    ap = (struct action *)msort((char *)ap,(char **)&ap->next,
-            (int(*)(const char*,const char*))actioncmp);
-    return ap;
-}
-
-void Action_add(
-        struct action **app,
-        enum e_action type,
-        struct symbol *sp,
-        char *arg
-){
-    struct action *newaction;
-    newaction = Action_new();
-    newaction->next = *app;
-    *app = newaction;
-    newaction->type = type;
-    newaction->sp = sp;
-    if( type==SHIFT ){
-        newaction->x.stp = (struct state *)arg;
-    }else{
-        newaction->x.rp = (struct rule *)arg;
-    }
-}

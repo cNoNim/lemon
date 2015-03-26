@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 /*
 ** A generic merge-sort program.
 **
@@ -45,7 +47,7 @@ static char *merge(
         char *a,
         char *b,
         int (*cmp)(const char*,const char*),
-        int offset
+        size_t offset
 ){
     char *ptr, *head;
 
@@ -98,11 +100,11 @@ char *msort(
         char **next,
         int (*cmp)(const char*,const char*)
 ){
-    unsigned long offset;
+    size_t offset;
     char *ep;
     char *set[LISTSIZE];
     int i;
-    offset = (unsigned long)next - (unsigned long)list;
+    offset = (size_t)next - (size_t)list;
     for(i=0; i<LISTSIZE; i++) set[i] = 0;
     while( list ){
         ep = list;

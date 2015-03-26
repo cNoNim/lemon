@@ -12,11 +12,6 @@
 ** Input file parser for the LEMON parser generator.
 */
 
-// TODO: move
-extern int nDefine;
-extern char **azDefine;
-
-
 /* The state of the parser */
 enum e_state {
     INITIALIZE,
@@ -67,15 +62,171 @@ struct pstate {
     struct rule *lastrule;     /* Pointer to the most recently parsed rule */
 };
 
+// TODO: move
+extern int nDefine;
+extern char **azDefine;
+
+/* forward declarations */
+static void parseonetoken(struct pstate *);
+static void preprocess_input(char *);
+
+/* In spite of its name, this function is really a scanner.  It read
+** in the entire input file (all at once) then tokenizes it.  Each
+** token is passed to the function "parseonetoken" which builds all
+** the appropriate data structures in the global state vector "gp".
+*/
+void Parse(struct lemon *gp)
+{
+    struct pstate ps;
+    FILE *fp;
+    char *filebuf;
+    long filesize;
+    int lineno;
+    int c;
+    char *cp, *nextcp;
+    int startline = 0;
+
+    memset(&ps, '\0', sizeof(ps));
+    ps.gp = gp;
+    ps.filename = gp->filename;
+    ps.errorcnt = 0;
+    ps.state = INITIALIZE;
+
+    /* Begin by reading the input file */
+    fp = fopen(ps.filename,"rb");
+    if( fp==0 ){
+        ErrorMsg(ps.filename,0,"Can't open this file for reading.");
+        gp->errorcnt++;
+        return;
+    }
+    fseek(fp,0,2);
+    filesize = ftell(fp);
+    rewind(fp);
+    filebuf = (char *)malloc((size_t) (filesize+1));
+    if( filesize>100000000 || filebuf==0 ){
+        ErrorMsg(ps.filename,0,"Input file too large.");
+        gp->errorcnt++;
+        fclose(fp);
+        return;
+    }
+    if( fread(filebuf,1, (size_t) filesize,fp)!=filesize ){
+        ErrorMsg(ps.filename,0,"Can't read in all %d bytes of this file.",
+                filesize);
+        free(filebuf);
+        gp->errorcnt++;
+        fclose(fp);
+        return;
+    }
+    fclose(fp);
+    filebuf[filesize] = 0;
+
+    /* Make an initial pass through the file to handle %ifdef and %ifndef */
+    preprocess_input(filebuf);
+
+    /* Now scan the text of the input file */
+    lineno = 1;
+    for(cp=filebuf; (c= *cp)!=0; ){
+        if( c=='\n' ) lineno++;              /* Keep track of the line number */
+        if( isspace(c) ){ cp++; continue; }  /* Skip all white space */
+        if( c=='/' && cp[1]=='/' ){          /* Skip C++ style comments */
+            cp+=2;
+            while( (c= *cp)!=0 && c!='\n' ) cp++;
+            continue;
+        }
+        if( c=='/' && cp[1]=='*' ){          /* Skip C style comments */
+            cp+=2;
+            while( (c= *cp)!=0 && (c!='/' || cp[-1]!='*') ){
+                if( c=='\n' ) lineno++;
+                cp++;
+            }
+            if( c ) cp++;
+            continue;
+        }
+        ps.tokenstart = cp;                /* Mark the beginning of the token */
+        ps.tokenlineno = lineno;           /* Linenumber on which token begins */
+        if( c=='\"' ){                     /* String literals */
+            cp++;
+            while( (c= *cp)!=0 && c!='\"' ){
+                if( c=='\n' ) lineno++;
+                cp++;
+            }
+            if( c==0 ){
+                ErrorMsg(ps.filename,startline,
+                        "String starting on this line is not terminated before the end of the file.");
+                ps.errorcnt++;
+                nextcp = cp;
+            }else{
+                nextcp = cp+1;
+            }
+        }else if( c=='{' ){               /* A block of C code */
+            int level;
+            cp++;
+            for(level=1; (c= *cp)!=0 && (level>1 || c!='}'); cp++){
+                if( c=='\n' ) lineno++;
+                else if( c=='{' ) level++;
+                else if( c=='}' ) level--;
+                else if( c=='/' && cp[1]=='*' ){  /* Skip comments */
+                    int prevc;
+                    cp = &cp[2];
+                    prevc = 0;
+                    while( (c= *cp)!=0 && (c!='/' || prevc!='*') ){
+                        if( c=='\n' ) lineno++;
+                        prevc = c;
+                        cp++;
+                    }
+                }else if( c=='/' && cp[1]=='/' ){  /* Skip C++ style comments too */
+                    cp = &cp[2];
+                    while( (c= *cp)!=0 && c!='\n' ) cp++;
+                    if( c ) lineno++;
+                }else if( c=='\'' || c=='\"' ){    /* String a character literals */
+                    int startchar, prevc;
+                    startchar = c;
+                    prevc = 0;
+                    for(cp++; (c= *cp)!=0 && (c!=startchar || prevc=='\\'); cp++){
+                        if( c=='\n' ) lineno++;
+                        if( prevc=='\\' ) prevc = 0;
+                        else              prevc = c;
+                    }
+                }
+            }
+            if( c==0 ){
+                ErrorMsg(ps.filename,ps.tokenlineno,
+                        "C code starting on this line is not terminated before the end of the file.");
+                ps.errorcnt++;
+                nextcp = cp;
+            }else{
+                nextcp = cp+1;
+            }
+        }else if( isalnum(c) ){          /* Identifiers */
+            while( (c= *cp)!=0 && (isalnum(c) || c=='_') ) cp++;
+            nextcp = cp;
+        }else if( c==':' && cp[1]==':' && cp[2]=='=' ){ /* The operator "::=" */
+            cp += 3;
+            nextcp = cp;
+        }else if( (c=='/' || c=='|') && isalpha(cp[1]) ){
+            cp += 2;
+            while( (c = *cp)!=0 && (isalnum(c) || c=='_') ) cp++;
+            nextcp = cp;
+        }else{                          /* All other (one character) operators */
+            cp++;
+            nextcp = cp;
+        }
+        c = *cp;
+        *cp = 0;                        /* Null terminate the token */
+        parseonetoken(&ps);             /* Parse the token */
+        *cp = (char)c;                  /* Restore the buffer */
+        cp = nextcp;
+    }
+    free(filebuf);                    /* Release the buffer after parsing */
+    gp->rule = ps.firstrule;
+    gp->errorcnt = ps.errorcnt;
+}
+
 /* Parse a single token */
 static void parseonetoken(struct pstate *psp)
 {
     const char *x;
     x = Strsafe(psp->tokenstart);     /* Save the token permanently */
-#if 0
-  printf("%s:%d: Token=[%s] state=%d\n",psp->filename,psp->tokenlineno,
-    x,psp->state);
-#endif
     switch( psp->state ){
         case INITIALIZE:
             psp->prevrule = 0;
@@ -619,156 +770,4 @@ static void preprocess_input(char *z){
         fprintf(stderr,"unterminated %%ifdef starting on line %d\n", start_lineno);
         exit(1);
     }
-}
-
-/* In spite of its name, this function is really a scanner.  It read
-** in the entire input file (all at once) then tokenizes it.  Each
-** token is passed to the function "parseonetoken" which builds all
-** the appropriate data structures in the global state vector "gp".
-*/
-void Parse(struct lemon *gp)
-{
-    struct pstate ps;
-    FILE *fp;
-    char *filebuf;
-    long filesize;
-    int lineno;
-    int c;
-    char *cp, *nextcp;
-    int startline = 0;
-
-    memset(&ps, '\0', sizeof(ps));
-    ps.gp = gp;
-    ps.filename = gp->filename;
-    ps.errorcnt = 0;
-    ps.state = INITIALIZE;
-
-    /* Begin by reading the input file */
-    fp = fopen(ps.filename,"rb");
-    if( fp==0 ){
-        ErrorMsg(ps.filename,0,"Can't open this file for reading.");
-        gp->errorcnt++;
-        return;
-    }
-    fseek(fp,0,2);
-    filesize = ftell(fp);
-    rewind(fp);
-    filebuf = (char *)malloc((size_t) (filesize+1));
-    if( filesize>100000000 || filebuf==0 ){
-        ErrorMsg(ps.filename,0,"Input file too large.");
-        gp->errorcnt++;
-        fclose(fp);
-        return;
-    }
-    if( fread(filebuf,1, (size_t) filesize,fp)!=filesize ){
-        ErrorMsg(ps.filename,0,"Can't read in all %d bytes of this file.",
-                filesize);
-        free(filebuf);
-        gp->errorcnt++;
-        fclose(fp);
-        return;
-    }
-    fclose(fp);
-    filebuf[filesize] = 0;
-
-    /* Make an initial pass through the file to handle %ifdef and %ifndef */
-    preprocess_input(filebuf);
-
-    /* Now scan the text of the input file */
-    lineno = 1;
-    for(cp=filebuf; (c= *cp)!=0; ){
-        if( c=='\n' ) lineno++;              /* Keep track of the line number */
-        if( isspace(c) ){ cp++; continue; }  /* Skip all white space */
-        if( c=='/' && cp[1]=='/' ){          /* Skip C++ style comments */
-            cp+=2;
-            while( (c= *cp)!=0 && c!='\n' ) cp++;
-            continue;
-        }
-        if( c=='/' && cp[1]=='*' ){          /* Skip C style comments */
-            cp+=2;
-            while( (c= *cp)!=0 && (c!='/' || cp[-1]!='*') ){
-                if( c=='\n' ) lineno++;
-                cp++;
-            }
-            if( c ) cp++;
-            continue;
-        }
-        ps.tokenstart = cp;                /* Mark the beginning of the token */
-        ps.tokenlineno = lineno;           /* Linenumber on which token begins */
-        if( c=='\"' ){                     /* String literals */
-            cp++;
-            while( (c= *cp)!=0 && c!='\"' ){
-                if( c=='\n' ) lineno++;
-                cp++;
-            }
-            if( c==0 ){
-                ErrorMsg(ps.filename,startline,
-                        "String starting on this line is not terminated before the end of the file.");
-                ps.errorcnt++;
-                nextcp = cp;
-            }else{
-                nextcp = cp+1;
-            }
-        }else if( c=='{' ){               /* A block of C code */
-            int level;
-            cp++;
-            for(level=1; (c= *cp)!=0 && (level>1 || c!='}'); cp++){
-                if( c=='\n' ) lineno++;
-                else if( c=='{' ) level++;
-                else if( c=='}' ) level--;
-                else if( c=='/' && cp[1]=='*' ){  /* Skip comments */
-                    int prevc;
-                    cp = &cp[2];
-                    prevc = 0;
-                    while( (c= *cp)!=0 && (c!='/' || prevc!='*') ){
-                        if( c=='\n' ) lineno++;
-                        prevc = c;
-                        cp++;
-                    }
-                }else if( c=='/' && cp[1]=='/' ){  /* Skip C++ style comments too */
-                    cp = &cp[2];
-                    while( (c= *cp)!=0 && c!='\n' ) cp++;
-                    if( c ) lineno++;
-                }else if( c=='\'' || c=='\"' ){    /* String a character literals */
-                    int startchar, prevc;
-                    startchar = c;
-                    prevc = 0;
-                    for(cp++; (c= *cp)!=0 && (c!=startchar || prevc=='\\'); cp++){
-                        if( c=='\n' ) lineno++;
-                        if( prevc=='\\' ) prevc = 0;
-                        else              prevc = c;
-                    }
-                }
-            }
-            if( c==0 ){
-                ErrorMsg(ps.filename,ps.tokenlineno,
-                        "C code starting on this line is not terminated before the end of the file.");
-                ps.errorcnt++;
-                nextcp = cp;
-            }else{
-                nextcp = cp+1;
-            }
-        }else if( isalnum(c) ){          /* Identifiers */
-            while( (c= *cp)!=0 && (isalnum(c) || c=='_') ) cp++;
-            nextcp = cp;
-        }else if( c==':' && cp[1]==':' && cp[2]=='=' ){ /* The operator "::=" */
-            cp += 3;
-            nextcp = cp;
-        }else if( (c=='/' || c=='|') && isalpha(cp[1]) ){
-            cp += 2;
-            while( (c = *cp)!=0 && (isalnum(c) || c=='_') ) cp++;
-            nextcp = cp;
-        }else{                          /* All other (one character) operators */
-            cp++;
-            nextcp = cp;
-        }
-        c = *cp;
-        *cp = 0;                        /* Null terminate the token */
-        parseonetoken(&ps);             /* Parse the token */
-        *cp = (char)c;                  /* Restore the buffer */
-        cp = nextcp;
-    }
-    free(filebuf);                    /* Release the buffer after parsing */
-    gp->rule = ps.firstrule;
-    gp->errorcnt = ps.errorcnt;
 }

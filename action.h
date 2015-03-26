@@ -30,8 +30,8 @@ struct action {
     struct action *collide;  /* Next action with the same hash */
 };
 
-void Action_add(struct action **, enum e_action, struct symbol *, char *);
 struct action *Action_new(void);
+void Action_add(struct action **, enum e_action, struct symbol *, char *);
 struct action *Action_sort(struct action *);
 
 #endif //_LEMON_ACTION_H_

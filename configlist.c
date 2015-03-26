@@ -21,31 +21,9 @@ static struct config **currentend = 0;   /* Last on list of configs */
 static struct config *basis = 0;         /* Top of list of basis configs */
 static struct config **basisend = 0;     /* End of list of basis configs */
 
-/* Return a pointer to a new configuration */
-static struct config *newconfig(){
-    struct config *newcfg;
-    if( freelist==0 ){
-        int i;
-        size_t amt = 3;
-        freelist = (struct config *)calloc( amt, sizeof(struct config) );
-        if( freelist==0 ){
-            fprintf(stderr,"Unable to allocate memory for a new configuration.");
-            exit(1);
-        }
-        for(i=0; i<amt-1; i++) freelist[i].next = &freelist[i+1];
-        freelist[amt-1].next = 0;
-    }
-    newcfg = freelist;
-    freelist = freelist->next;
-    return newcfg;
-}
-
-/* The configuration "old" is no longer used */
-static void deleteconfig(struct config *old)
-{
-    old->next = freelist;
-    freelist = old;
-}
+/* forward declaration */
+static struct config *newconfig();
+static void deleteconfig(struct config *old);
 
 /* Initialized the configuration list builder */
 void Configlist_init(){
@@ -214,3 +192,30 @@ void Configlist_eat(struct config *cfp)
     }
     return;
 }
+
+/* Return a pointer to a new configuration */
+static struct config *newconfig(){
+    struct config *newcfg;
+    if( freelist==0 ){
+        int i;
+        size_t amt = 3;
+        freelist = (struct config *)calloc( amt, sizeof(struct config) );
+        if( freelist==0 ){
+            fprintf(stderr,"Unable to allocate memory for a new configuration.");
+            exit(1);
+        }
+        for(i=0; i<amt-1; i++) freelist[i].next = &freelist[i+1];
+        freelist[amt-1].next = 0;
+    }
+    newcfg = freelist;
+    freelist = freelist->next;
+    return newcfg;
+}
+
+/* The configuration "old" is no longer used */
+static void deleteconfig(struct config *old)
+{
+    old->next = freelist;
+    freelist = old;
+}
+
