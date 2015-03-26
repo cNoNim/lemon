@@ -10,16 +10,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
-** Routines to processing a configuration list and building a state
-** in the LEMON parser generator.
-*/
-
-static struct config *freelist = 0;    /* List of free configurations */
-static struct config *current = 0;     /* Top of list of configurations */
-static struct config **currentend = 0; /* Last on list of configs */
-static struct config *basis = 0;       /* Top of list of basis configs */
-static struct config **basisend = 0;   /* End of list of basis configs */
+static struct config *freelist = 0;    // List of free configurations
+static struct config *current = 0;     // Top of list of configurations
+static struct config **currentend = 0; // Last on list of configs
+static struct config *basis = 0;       // Top of list of basis configs
+static struct config **basisend = 0;   // End of list of basis configs
 
 /* forward declaration */
 static struct config *newconfig();
@@ -49,8 +44,8 @@ Configlist_reset() {
 
 /* Add another configuration to the configuration list */
 struct config *
-Configlist_add(struct rule *rp, /* The rule */
-               int dot          /* Index into the RHS of the rule where the dot goes */
+Configlist_add(struct rule *rp, // The rule
+               int dot          // Index into the RHS of the rule where the dot goes
                ) {
   struct config *cfp, model;
 
@@ -166,7 +161,8 @@ Configlist_sortbasis() {
 }
 
 /* Return a pointer to the head of the configuration list and
-** reset the list */
+ * reset the list
+ */
 struct config *
 Configlist_return() {
   struct config *old;
@@ -177,7 +173,8 @@ Configlist_return() {
 }
 
 /* Return a pointer to the head of the configuration list and
-** reset the list */
+ * reset the list
+ */
 struct config *
 Configlist_basis() {
   struct config *old;

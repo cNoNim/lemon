@@ -1,10 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-/*
-** Set manipulation routines for the LEMON parser generator.
-*/
-
 static int size = 0;
 
 /* Set the set size */
@@ -32,7 +28,8 @@ SetFree(char *s) {
 }
 
 /* Add a new element to the set.  Return TRUE if the element was added
-** and FALSE if it was already there. */
+ * and FALSE if it was already there.
+ */
 int
 SetAdd(char *s, int e) {
   int rv;

@@ -13,98 +13,87 @@
 }
 
 /* There is one instance of the following structure for each
-** associative array of type "x1".
-*/
+ * associative array of type "x1".
+ */
 struct s_x1 {
-  int size; /* The number of available slots. */
-  /*   Must be a power of 2 greater than or */
-  /*   equal to 1 */
-  int count;            /* Number of currently slots filled */
-  struct s_x1node *tbl; /* The data stored here */
-  struct s_x1node **ht; /* Hash table for lookups */
+  int size;             // The number of available slots. Must be a power of 2 greater than or equal to 1
+  int count;            // Number of currently slots filled
+  struct s_x1node *tbl; // The data stored here
+  struct s_x1node **ht; // Hash table for lookups
 };
 
 /* There is one instance of this structure for every data element
-** in an associative array of type "x1".
-*/
+ * in an associative array of type "x1".
+ */
 typedef struct s_x1node {
-  const char *data;       /* The data */
-  struct s_x1node *next;  /* Next entry with the same hash */
-  struct s_x1node **from; /* Previous link */
+  const char *data;       // The data
+  struct s_x1node *next;  // Next entry with the same hash
+  struct s_x1node **from; // Previous link
 } x1node;
 
 /* There is one instance of the following structure for each
-** associative array of type "x2".
-*/
+ * associative array of type "x2".
+ */
 struct s_x2 {
-  int size; /* The number of available slots. */
-  /*   Must be a power of 2 greater than or */
-  /*   equal to 1 */
-  int count;            /* Number of currently slots filled */
-  struct s_x2node *tbl; /* The data stored here */
-  struct s_x2node **ht; /* Hash table for lookups */
+  int size;             // The number of available slots. Must be a power of 2 greater than or equal to 1
+  int count;            // Number of currently slots filled
+  struct s_x2node *tbl; // The data stored here
+  struct s_x2node **ht; // Hash table for lookups
 };
 
 /* There is one instance of this structure for every data element
-** in an associative array of type "x2".
-*/
+ * in an associative array of type "x2".
+ */
 typedef struct s_x2node {
-  struct symbol *data;    /* The data */
-  const char *key;        /* The key */
-  struct s_x2node *next;  /* Next entry with the same hash */
-  struct s_x2node **from; /* Previous link */
+  struct symbol *data;    // The data
+  const char *key;        // The key
+  struct s_x2node *next;  // Next entry with the same hash
+  struct s_x2node **from; // Previous link
 } x2node;
 
 /* There is one instance of the following structure for each
-** associative array of type "x3".
-*/
+ * associative array of type "x3".
+ */
 struct s_x3 {
-  int size; /* The number of available slots. */
-  /*   Must be a power of 2 greater than or */
-  /*   equal to 1 */
-  int count;            /* Number of currently slots filled */
-  struct s_x3node *tbl; /* The data stored here */
-  struct s_x3node **ht; /* Hash table for lookups */
+  int size;             // The number of available slots. Must be a power of 2 greater than or equal to 1
+  int count;            // Number of currently slots filled
+  struct s_x3node *tbl; // The data stored here
+  struct s_x3node **ht; // Hash table for lookups
 };
 
 /* There is one instance of this structure for every data element
-** in an associative array of type "x3".
-*/
+ * in an associative array of type "x3".
+ */
 typedef struct s_x3node {
-  struct state *data;     /* The data */
-  struct config *key;     /* The key */
-  struct s_x3node *next;  /* Next entry with the same hash */
-  struct s_x3node **from; /* Previous link */
+  struct state *data;     // The data
+  struct config *key;     // The key
+  struct s_x3node *next;  // Next entry with the same hash
+  struct s_x3node **from; // Previous link
 } x3node;
 
 /* There is one instance of the following structure for each
-** associative array of type "x4".
-*/
+ * associative array of type "x4".
+ */
 struct s_x4 {
-  int size; /* The number of available slots. */
-  /*   Must be a power of 2 greater than or */
-  /*   equal to 1 */
-  int count;            /* Number of currently slots filled */
-  struct s_x4node *tbl; /* The data stored here */
-  struct s_x4node **ht; /* Hash table for lookups */
+  int size;             // The number of available slots. Must be a power of 2 greater than or equal to 1
+  int count;            // Number of currently slots filled
+  struct s_x4node *tbl; // The data stored here
+  struct s_x4node **ht; // Hash table for lookups
 };
 
 /* There is one instance of this structure for every data element
-** in an associative array of type "x4".
-*/
+ * in an associative array of type "x4".
+ */
 typedef struct s_x4node {
-  struct config *data;    /* The data */
-  struct s_x4node *next;  /* Next entry with the same hash */
-  struct s_x4node **from; /* Previous link */
+  struct config *data;    // The data
+  struct s_x4node *next;  // Next entry with the same hash
+  struct s_x4node **from; // Previous link
 } x4node;
 
-/* There is only one instance of the array, which is the following */
+/* Instance of the array, which is the following */
 static struct s_x1 *x1a;
-/* There is only one instance of the array, which is the following */
 static struct s_x2 *x2a;
-/* There is only one instance of the array, which is the following */
 static struct s_x3 *x3a;
-/* There is only one instance of the array, which is the following */
 static struct s_x4 *x4a;
 
 /* forward declaration */
@@ -113,14 +102,10 @@ static int statecmp(struct config *, struct config *);
 static unsigned statehash(struct config *);
 static unsigned strhash(const char *x);
 
-/*
-** Code for processing tables in the LEMON parser generator.
-*/
-
 /* Works like strdup, sort of.  Save a string in malloced memory, but
-** keep strings in a table so that the same string is not in more
-** than one place.
-*/
+ * keep strings in a table so that the same string is not in more
+ * than one place.
+ */
 const char *
 Strsafe(const char *y) {
   const char *z;
@@ -161,7 +146,8 @@ Strsafe_init() {
 }
 
 /* Insert a new record into the array.  Return TRUE if successful.
-** Prior data with the same key is NOT overwritten */
+ * Prior data with the same key is NOT overwritten
+ */
 int
 Strsafe_insert(const char *data) {
   x1node *np;
@@ -175,8 +161,9 @@ Strsafe_insert(const char *data) {
   np = x1a->ht[h];
   while (np) {
     if (strcmp(np->data, data) == 0) {
-      /* An existing entry with the same key is found. */
-      /* Fail because overwrite is not allows. */
+      /* An existing entry with the same key is found.
+       * Fail because overwrite is not allows.
+       */
       return 0;
     }
     np = np->next;
@@ -189,7 +176,7 @@ Strsafe_insert(const char *data) {
     array.count = x1a->count;
     array.tbl = (x1node *)calloc(size, sizeof(x1node) + sizeof(x1node *));
     if (array.tbl == 0)
-      return 0; /* Fail due to malloc failure */
+      return 0; // Fail due to malloc failure
     array.ht = (x1node **)&(array.tbl[size]);
     for (i = 0; i < size; i++)
       array.ht[i] = 0;
@@ -221,7 +208,8 @@ Strsafe_insert(const char *data) {
 }
 
 /* Return a pointer to data assigned to the given key.  Return NULL
-** if no such key. */
+ * if no such key.
+ */
 const char *
 Strsafe_find(const char *key) {
   unsigned h;
@@ -240,8 +228,8 @@ Strsafe_find(const char *key) {
 }
 
 /* Return a pointer to the (terminal or nonterminal) symbol "x".
-** Create a new symbol if this is the first time "x" has been seen.
-*/
+ * Create a new symbol if this is the first time "x" has been seen.
+ */
 struct symbol *
 Symbol_new(const char *x) {
   struct symbol *sp;
@@ -269,19 +257,19 @@ Symbol_new(const char *x) {
 }
 
 /* Compare two symbols for sorting purposes.  Return negative,
-** zero, or positive if a is less then, equal to, or greater
-** than b.
-**
-** Symbols that begin with upper case letters (terminals or tokens)
-** must sort before symbols that begin with lower case letters
-** (non-terminals).  And MULTITERMINAL symbols (created using the
-** %token_class directive) must sort at the very end. Other than
-** that, the order does not matter.
-**
-** We find experimentally that leaving the symbols in their original
-** order (the order they appeared in the grammar file) gives the
-** smallest parser tables in SQLite.
-*/
+ * zero, or positive if a is less then, equal to, or greater
+ * than b.
+ *
+ * Symbols that begin with upper case letters (terminals or tokens)
+ * must sort before symbols that begin with lower case letters
+ * (non-terminals).  And MULTITERMINAL symbols (created using the
+ * %token_class directive) must sort at the very end. Other than
+ * that, the order does not matter.
+ *
+ * We find experimentally that leaving the symbols in their original
+ * order (the order they appeared in the grammar file) gives the
+ * smallest parser tables in SQLite.
+ */
 int
 Symbolcmpp(const void *_a, const void *_b) {
   const struct symbol *a = *(const struct symbol **)_a;
@@ -314,7 +302,8 @@ Symbol_init() {
 }
 
 /* Insert a new record into the array.  Return TRUE if successful.
-** Prior data with the same key is NOT overwritten */
+ * Prior data with the same key is NOT overwritten
+ */
 int
 Symbol_insert(struct symbol *data, const char *key) {
   x2node *np;
@@ -328,8 +317,9 @@ Symbol_insert(struct symbol *data, const char *key) {
   np = x2a->ht[h];
   while (np) {
     if (strcmp(np->key, key) == 0) {
-      /* An existing entry with the same key is found. */
-      /* Fail because overwrite is not allows. */
+      /* An existing entry with the same key is found.
+       * Fail because overwrite is not allows.
+       */
       return 0;
     }
     np = np->next;
@@ -342,7 +332,7 @@ Symbol_insert(struct symbol *data, const char *key) {
     array.count = x2a->count;
     array.tbl = (x2node *)calloc(size, sizeof(x2node) + sizeof(x2node *));
     if (array.tbl == 0)
-      return 0; /* Fail due to malloc failure */
+      return 0; // Fail due to malloc failure
     array.ht = (x2node **)&(array.tbl[size]);
     for (i = 0; i < size; i++)
       array.ht[i] = 0;
@@ -376,7 +366,8 @@ Symbol_insert(struct symbol *data, const char *key) {
 }
 
 /* Return a pointer to data assigned to the given key.  Return NULL
-** if no such key. */
+ * if no such key.
+ */
 struct symbol *
 Symbol_find(const char *key) {
   unsigned h;
@@ -413,8 +404,9 @@ Symbol_count() {
 }
 
 /* Return an array of pointers to all data in the table.
-** The array is obtained from malloc.  Return NULL if memory allocation
-** problems, or if the array is empty. */
+ * The array is obtained from malloc.  Return NULL if memory allocation
+ * problems, or if the array is empty.
+ */
 struct symbol **
 Symbol_arrayof() {
   struct symbol **array;
@@ -474,7 +466,8 @@ State_init() {
 }
 
 /* Insert a new record into the array.  Return TRUE if successful.
-** Prior data with the same key is NOT overwritten */
+ * Prior data with the same key is NOT overwritten
+ */
 int
 State_insert(struct state *data, struct config *key) {
   x3node *np;
@@ -488,8 +481,9 @@ State_insert(struct state *data, struct config *key) {
   np = x3a->ht[h];
   while (np) {
     if (statecmp(np->key, key) == 0) {
-      /* An existing entry with the same key is found. */
-      /* Fail because overwrite is not allows. */
+      /* An existing entry with the same key is found.
+       * Fail because overwrite is not allows.
+       */
       return 0;
     }
     np = np->next;
@@ -502,7 +496,7 @@ State_insert(struct state *data, struct config *key) {
     array.count = x3a->count;
     array.tbl = (x3node *)calloc(size, sizeof(x3node) + sizeof(x3node *));
     if (array.tbl == 0)
-      return 0; /* Fail due to malloc failure */
+      return 0; // Fail due to malloc failure
     array.ht = (x3node **)&(array.tbl[size]);
     for (i = 0; i < size; i++)
       array.ht[i] = 0;
@@ -536,7 +530,8 @@ State_insert(struct state *data, struct config *key) {
 }
 
 /* Return a pointer to data assigned to the given key.  Return NULL
-** if no such key. */
+ * if no such key.
+ */
 struct state *
 State_find(struct config *key) {
   unsigned h;
@@ -555,8 +550,9 @@ State_find(struct config *key) {
 }
 
 /* Return an array of pointers to all data in the table.
-** The array is obtained from malloc.  Return NULL if memory allocation
-** problems, or if the array is empty. */
+ * The array is obtained from malloc.  Return NULL if memory allocation
+ * problems, or if the array is empty.
+ */
 struct state **
 State_arrayof() {
   struct state **array;
@@ -595,7 +591,8 @@ Configtable_init() {
 }
 
 /* Insert a new record into the array.  Return TRUE if successful.
-** Prior data with the same key is NOT overwritten */
+ * Prior data with the same key is NOT overwritten
+ */
 int
 Configtable_insert(struct config *data) {
   x4node *np;
@@ -609,8 +606,8 @@ Configtable_insert(struct config *data) {
   np = x4a->ht[h];
   while (np) {
     if (Configcmp((const char *)np->data, (const char *)data) == 0) {
-      /* An existing entry with the same key is found. */
-      /* Fail because overwrite is not allows. */
+      /* An existing entry with the same key is found.
+       * Fail because overwrite is not allows. */
       return 0;
     }
     np = np->next;
@@ -623,7 +620,7 @@ Configtable_insert(struct config *data) {
     array.count = x4a->count;
     array.tbl = (x4node *)calloc(size, sizeof(x4node) + sizeof(x4node *));
     if (array.tbl == 0)
-      return 0; /* Fail due to malloc failure */
+      return 0; // Fail due to malloc failure
     array.ht = (x4node **)&(array.tbl[size]);
     for (i = 0; i < size; i++)
       array.ht[i] = 0;
@@ -655,7 +652,8 @@ Configtable_insert(struct config *data) {
 }
 
 /* Return a pointer to data assigned to the given key.  Return NULL
-** if no such key. */
+ * if no such key.
+ */
 struct config *
 Configtable_find(struct config *key) {
   int h;
@@ -674,7 +672,8 @@ Configtable_find(struct config *key) {
 }
 
 /* Remove all data from the table.  Pass each data to the function "f"
-** as it is removed.  ("f" may be null to avoid this step.) */
+ * as it is removed.  ("f" may be null to avoid this step.)
+ */
 void
 Configtable_clear(int (*f)(struct config *)) {
   int i;

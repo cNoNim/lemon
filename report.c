@@ -25,20 +25,17 @@ extern int access(const char *path, int mode);
 #include <unistd.h>
 #endif
 
+#define LINESIZE 1000
 #define NO_OFFSET (-2147483647)
-
-/*
-** Procedures for generating reports and tables in the LEMON parser generator.
-*/
 
 // TODO: move
 extern int showPrecedenceConflict;
 extern char *user_templatename;
 
 /* Generate a filename with the given suffix.  Space to hold the
-** name comes from malloc() and must be freed by the calling
-** function.
-*/
+ * name comes from malloc() and must be freed by the calling
+ * function.
+ */
 static char *
 file_makename(struct lemon *lemp, const char *suffix) {
   char *name;
@@ -58,8 +55,9 @@ file_makename(struct lemon *lemp, const char *suffix) {
 }
 
 /* Open a file with a name based on the name of the input file,
-** but with a different (specified) suffix, and return a pointer
-** to the stream */
+ * but with a different (specified) suffix, and return a pointer
+ * to the stream
+ */
 static FILE *
 file_open(struct lemon *lemp, const char *suffix, const char *mode) {
   FILE *fp;
@@ -77,7 +75,8 @@ file_open(struct lemon *lemp, const char *suffix, const char *mode) {
 }
 
 /* Duplicate the input file without comments and without actions
-** on rules */
+ * on rules
+ */
 void
 Reprint(struct lemon *lemp) {
   struct rule *rp;
@@ -106,7 +105,6 @@ Reprint(struct lemon *lemp) {
   }
   for (rp = lemp->rule; rp; rp = rp->next) {
     printf("%s", rp->lhs->name);
-    /*    if( rp->lhsalias ) printf("(%s)",rp->lhsalias); */
     printf(" ::=");
     for (i = 0; i < rp->nrhs; i++) {
       sp = rp->rhs[i];
@@ -118,12 +116,10 @@ Reprint(struct lemon *lemp) {
       } else {
         printf(" %s", sp->name);
       }
-      /* if( rp->rhsalias[i] ) printf("(%s)",rp->rhsalias[i]); */
     }
     printf(".");
     if (rp->precsym)
       printf(" [%s]", rp->precsym->name);
-    /* if( rp->code ) printf("\n    %s",rp->code); */
     printf("\n");
   }
 }
@@ -153,8 +149,8 @@ ConfigPrint(FILE *fp, struct config *cfp) {
 }
 
 /* Print an action to the given file descriptor.  Return FALSE if
-** nothing was actually printed.
-*/
+ * nothing was actually printed.
+ */
 int
 PrintAction(struct action *ap, FILE *fp, int indent) {
   int result = 1;
@@ -228,11 +224,6 @@ ReportOutput(struct lemon *lemp) {
       }
       ConfigPrint(fp, cfp);
       fprintf(fp, "\n");
-#if 0
-      SetPrint(fp,cfp->fws,lemp);
-      PlinkPrint(fp,cfp->fplp,"To  ");
-      PlinkPrint(fp,cfp->bplp,"From");
-#endif
       if (lemp->basisflag)
         cfp = cfp->bp;
       else
@@ -271,7 +262,8 @@ ReportOutput(struct lemon *lemp) {
 }
 
 /* Search for the file "name" which is in the same directory as
-** the exacutable */
+ * the exacutable
+ */
 static char *
 pathsearch(char *argv0, char *name, int modemask) {
   const char *pathlist;
@@ -323,9 +315,9 @@ pathsearch(char *argv0, char *name, int modemask) {
 }
 
 /* Given an action, compute the integer value for that action
-** which is to be put in the action table of the generated machine.
-** Return negative if no action should be generated.
-*/
+ * which is to be put in the action table of the generated machine.
+ * Return negative if no action should be generated.
+ */
 static int
 compute_action(struct lemon *lemp, struct action *ap) {
   int act;
@@ -349,16 +341,15 @@ compute_action(struct lemon *lemp, struct action *ap) {
   return act;
 }
 
-#define LINESIZE 1000
 /* The next cluster of routines are for reading the template file
-** and writing the results to the generated parser */
-/* The first function transfers data from "in" to "out" until
-** a line is seen which begins with "%%".  The line number is
-** tracked.
-**
-** if name!=0, then any word that begin with "Parse" is changed to
-** begin with *name instead.
-*/
+ * and writing the results to the generated parser
+ * The first function transfers data from "in" to "out" until
+ * a line is seen which begins with "%%".  The line number is
+ * tracked.
+ *
+ * if name!=0, then any word that begin with "Parse" is changed to
+ * begin with *name instead.
+ */
 static void
 tplt_xfer(char *name, FILE *in, FILE *out, int *lineno) {
   int i, iStart;
@@ -382,7 +373,8 @@ tplt_xfer(char *name, FILE *in, FILE *out, int *lineno) {
 }
 
 /* The next function finds the template file and opens it, returning
-** a pointer to the opened file. */
+ * a pointer to the opened file.
+ */
 static FILE *
 tplt_open(struct lemon *lemp) {
   static char templatename[] = "lempar.c";
@@ -469,10 +461,9 @@ tplt_print(FILE *out, struct lemon *lemp, char *str, int *lineno) {
   return;
 }
 
-/*
-** The following routine emits code for the destructor for the
-** symbol sp
-*/
+/* The following routine emits code for the destructor for the
+ * symbol sp
+ */
 void
 emit_destructor_code(FILE *out, struct symbol *sp, struct lemon *lemp, int *lineno) {
   char *cp = 0;
@@ -498,7 +489,7 @@ emit_destructor_code(FILE *out, struct symbol *sp, struct lemon *lemp, int *line
     fprintf(out, "{\n");
     (*lineno)++;
   } else {
-    assert(0); /* Cannot happen */
+    assert(0); // Cannot happen
   }
   for (; *cp; cp++) {
     if (*cp == '$' && cp[1] == '$') {
@@ -521,9 +512,7 @@ emit_destructor_code(FILE *out, struct symbol *sp, struct lemon *lemp, int *line
   return;
 }
 
-/*
-** Return TRUE (non-zero) if the given symbol has a destructor.
-*/
+/* Return TRUE (non-zero) if the given symbol has a destructor. */
 int
 has_destructor(struct symbol *sp, struct lemon *lemp) {
   int ret;
@@ -535,18 +524,17 @@ has_destructor(struct symbol *sp, struct lemon *lemp) {
   return ret;
 }
 
-/*
-** Append text to a dynamically allocated string.  If zText is 0 then
-** reset the string to be empty again.  Always return the complete text
-** of the string (which is overwritten with each call).
-**
-** n bytes of zText are stored.  If n==0 then all of zText up to the first
-** \000 terminator is stored.  zText can contain up to two instances of
-** %d.  The values of p1 and p2 are written into the first and second
-** %d.
-**
-** If n==-1, then the previous character is overwritten.
-*/
+/* Append text to a dynamically allocated string.  If zText is 0 then
+ * reset the string to be empty again.  Always return the complete text
+ * of the string (which is overwritten with each call).
+ *
+ * n bytes of zText are stored.  If n==0 then all of zText up to the first
+ * \000 terminator is stored.  zText can contain up to two instances of
+ * %d.  The values of p1 and p2 are written into the first and second
+ * %d.
+ *
+ * If n==-1, then the previous character is overwritten.
+ */
 static char *
 append_str(const char *zText, int n, int p1, int p2) {
   static char empty[1] = {0};
@@ -589,17 +577,16 @@ append_str(const char *zText, int n, int p1, int p2) {
   return z;
 }
 
-/*
-** zCode is a string that is the action associated with a rule.  Expand
-** the symbols in this string so that the refer to elements of the parser
-** stack.
-*/
+/* zCode is a string that is the action associated with a rule.  Expand
+ * the symbols in this string so that the refer to elements of the parser
+ * stack.
+ */
 static void
 translate_code(struct lemon *lemp, struct rule *rp) {
   char *cp, *xp;
   int i;
-  char lhsused = 0;  /* True if the LHS element has been used */
-  char used[MAXRHS]; /* True for each RHS element which is used */
+  char lhsused = 0;  // True if the LHS element has been used
+  char used[MAXRHS]; // True for each RHS element which is used
 
   for (i = 0; i < rp->nrhs; i++)
     used[i] = 0;
@@ -630,7 +617,8 @@ translate_code(struct lemon *lemp, struct rule *rp) {
           if (rp->rhsalias[i] && strcmp(cp, rp->rhsalias[i]) == 0) {
             if (cp != rp->code && cp[-1] == '@') {
               /* If the argument is of the form @X then substituted
-              ** the token number of X, not the value of X */
+               * the token number of X, not the value of X
+               */
               append_str("yymsp[%d].major", -1, i - rp->nrhs + 1, 0);
             } else {
               struct symbol *sp = rp->rhs[i];
@@ -651,7 +639,7 @@ translate_code(struct lemon *lemp, struct rule *rp) {
       *xp = saved;
     }
     append_str(cp, 1, 0, 0);
-  } /* End loop */
+  }
 
   /* Check to make sure the LHS has been used */
   if (rp->lhsalias && !lhsused) {
@@ -661,7 +649,8 @@ translate_code(struct lemon *lemp, struct rule *rp) {
   }
 
   /* Generate destructor code for RHS symbols which are not used in the
-  ** reduce code */
+   * reduce code
+   */
   for (i = 0; i < rp->nrhs; i++) {
     if (rp->rhsalias[i] && !used[i]) {
       ErrorMsg(lemp->filename, rp->ruleline, "Label %s for \"%s(%s)\" is never used.", rp->rhsalias[i],
@@ -681,10 +670,9 @@ translate_code(struct lemon *lemp, struct rule *rp) {
   }
 }
 
-/*
-** Generate code which executes when the rule "rp" is reduced.  Write
-** the code to "out".  Make sure lineno stays up-to-date.
-*/
+/* Generate code which executes when the rule "rp" is reduced.  Write
+ * the code to "out".  Make sure lineno stays up-to-date.
+ */
 static void
 emit_code(FILE *out, struct rule *rp, struct lemon *lemp, int *lineno) {
   const char *cp;
@@ -699,39 +687,38 @@ emit_code(FILE *out, struct rule *rp, struct lemon *lemp, int *lineno) {
     for (cp = rp->code; *cp; cp++) {
       if (*cp == '\n')
         (*lineno)++;
-    } /* End loop */
+    }
     fprintf(out, "}\n");
     (*lineno)++;
     if (!lemp->nolinenosflag) {
       (*lineno)++;
       tplt_linedir(out, *lineno, lemp->outname);
     }
-  } /* End if( rp->code ) */
+  }
 
   return;
 }
 
-/*
-** Print the definition of the union used for the parser's data stack.
-** This union contains fields for every possible data type for tokens
-** and nonterminals.  In the process of computing and printing this
-** union, also set the ".dtnum" field of every terminal and nonterminal
-** symbol.
-*/
+/* Print the definition of the union used for the parser's data stack.
+ * This union contains fields for every possible data type for tokens
+ * and nonterminals.  In the process of computing and printing this
+ * union, also set the ".dtnum" field of every terminal and nonterminal
+ * symbol.
+ */
 void
-print_stack_union(FILE *out,          /* The output stream */
-                  struct lemon *lemp, /* The main info structure for this parser */
-                  int *plineno,       /* Pointer to the line number */
-                  int mhflag          /* True if generating makeheaders output */
+print_stack_union(FILE *out,          // The output stream
+                  struct lemon *lemp, // The main info structure for this parser
+                  int *plineno,       // Pointer to the line number
+                  int mhflag          // True if generating makeheaders output
                   ) {
-  int lineno = *plineno; /* The line number of the output */
-  char **types;          /* A hash table of datatypes */
-  size_t arraysize;      /* Size of the "types" array */
-  size_t maxdtlength;    /* Maximum length of any ".datatype" field. */
-  char *stddt;           /* Standardized name for a datatype */
-  int i, j;              /* Loop counters */
-  unsigned hash;         /* For hashing the name of a type */
-  const char *name;      /* Name of the parser */
+  int lineno = *plineno; // The line number of the output
+  char **types;          // A hash table of datatypes
+  size_t arraysize;      // Size of the "types" array
+  size_t maxdtlength;    // Maximum length of any ".datatype" field.
+  char *stddt;           // Standardized name for a datatype
+  int i, j;              // Loop counters
+  unsigned hash;         // For hashing the name of a type
+  const char *name;      // Name of the parser
 
   /* Allocate and initialize types[] and allocate stddt[] */
   arraysize = (size_t)(lemp->nsymbol * 2);
@@ -762,11 +749,11 @@ print_stack_union(FILE *out,          /* The output stream */
   }
 
   /* Build a hash table of datatypes. The ".dtnum" field of each symbol
-  ** is filled in with the hash index plus 1.  A ".dtnum" value of 0 is
-  ** used for terminal symbols.  If there is no %default_type defined then
-  ** 0 is also used as the .dtnum value for nonterminals which do not specify
-  ** a datatype using the %type directive.
-  */
+   * is filled in with the hash index plus 1.  A ".dtnum" value of 0 is
+   * used for terminal symbols.  If there is no %default_type defined then
+   * 0 is also used as the .dtnum value for nonterminals which do not specify
+   * a datatype using the %type directive.
+   */
   for (i = 0; i < lemp->nsymbol; i++) {
     struct symbol *sp = lemp->symbols[i];
     char *cp;
@@ -855,10 +842,9 @@ print_stack_union(FILE *out,          /* The output stream */
   *plineno = lineno;
 }
 
-/*
-** Return the name of a C datatype able to represent values between
-** lwr and upr, inclusive.
-*/
+/* Return the name of a C datatype able to represent values between
+ * lwr and upr, inclusive.
+ */
 static const char *
 minimum_size_type(int lwr, int upr) {
   if (lwr >= 0) {
@@ -878,22 +864,19 @@ minimum_size_type(int lwr, int upr) {
   }
 }
 
-/*
-** Each state contains a set of token transaction and a set of
-** nonterminal transactions.  Each of these sets makes an instance
-** of the following structure.  An array of these structures is used
-** to order the creation of entries in the yy_action[] table.
-*/
+/* Each state contains a set of token transaction and a set of
+ * nonterminal transactions.  Each of these sets makes an instance
+ * of the following structure.  An array of these structures is used
+ * to order the creation of entries in the yy_action[] table.
+ */
 struct axset {
-  struct state *stp; /* A pointer to a state */
-  int isTkn;         /* True to use tokens.  False for non-terminals */
-  int nAction;       /* Number of actions */
-  int iOrder;        /* Original order of action sets */
+  struct state *stp; // A pointer to a state
+  int isTkn;         // True to use tokens.  False for non-terminals
+  int nAction;       // Number of actions
+  int iOrder;        // Original order of action sets
 };
 
-/*
-** Compare to axset structures for sorting purposes
-*/
+/* Compare to axset structures for sorting purposes */
 static int
 axset_compare(const void *a, const void *b) {
   struct axset *p1 = (struct axset *)a;
@@ -907,9 +890,7 @@ axset_compare(const void *a, const void *b) {
   return c;
 }
 
-/*
-** Write text on "out" that describes the rule "rp".
-*/
+/* Write text on "out" that describes the rule "rp". */
 static void
 writeRuleText(FILE *out, struct rule *rp) {
   int j;
@@ -930,7 +911,7 @@ writeRuleText(FILE *out, struct rule *rp) {
 
 /* Generate C source code for the parser */
 void
-ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if true */
+ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if true
             ) {
   FILE *out, *in;
   char line[LINESIZE];
@@ -1058,16 +1039,16 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   tplt_xfer(lemp->name, in, out, &lineno);
 
   /* Generate the action table and its associates:
-  **
-  **  yy_action[]        A single table containing all actions.
-  **  yy_lookahead[]     A table containing the lookahead for each entry in
-  **                     yy_action.  Used to detect hash collisions.
-  **  yy_shift_ofst[]    For each state, the offset into yy_action for
-  **                     shifting terminals.
-  **  yy_reduce_ofst[]   For each state, the offset into yy_action for
-  **                     shifting non-terminals after a reduce.
-  **  yy_default[]       Default action for each state.
-  */
+   *
+   *  yy_action[]        A single table containing all actions.
+   *  yy_lookahead[]     A table containing the lookahead for each entry in
+   *                     yy_action.  Used to detect hash collisions.
+   *  yy_shift_ofst[]    For each state, the offset into yy_action for
+   *                     shifting terminals.
+   *  yy_reduce_ofst[]   For each state, the offset into yy_action for
+   *                     shifting non-terminals after a reduce.
+   *  yy_default[]       Default action for each state.
+   */
 
   /* Compute the actions on all states and count them up */
   ax = (struct axset *)calloc(lemp->nstate * 2, sizeof(ax[0]));
@@ -1088,9 +1069,9 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   mxNtOfst = mnNtOfst = 0;
 
   /* Compute the action table.  In order to try to keep the size of the
-  ** action table to a minimum, the heuristic of placing the largest action
-  ** sets first is used.
-  */
+   * action table to a minimum, the heuristic of placing the largest action
+   * sets first is used.
+   */
   for (i = 0; i < lemp->nstate * 2; i++)
     ax[i].iOrder = i;
   qsort(ax, lemp->nstate * 2, sizeof(ax[0]), axset_compare);
@@ -1267,8 +1248,7 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   lineno++;
   tplt_xfer(lemp->name, in, out, &lineno);
 
-  /* Generate the table of fallback tokens.
-  */
+  /* Generate the table of fallback tokens. */
   if (lemp->has_fallback) {
     int mx = lemp->nterminal - 1;
     while (mx > 0 && lemp->symbols[mx]->fallback == 0) {
@@ -1286,8 +1266,7 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   }
   tplt_xfer(lemp->name, in, out, &lineno);
 
-  /* Generate a table containing the symbolic name of every symbol
-  */
+  /* Generate a table containing the symbolic name of every symbol */
   for (i = 0; i < lemp->nsymbol; i++) {
     sprintf(line, "\"%s\",", lemp->symbols[i]->name);
     fprintf(out, "  %-15s", line);
@@ -1303,9 +1282,9 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   tplt_xfer(lemp->name, in, out, &lineno);
 
   /* Generate a table containing a text string that describes every
-  ** rule in the rule set of the grammar.  This information is used
-  ** when tracing REDUCE actions.
-  */
+   * rule in the rule set of the grammar.  This information is used
+   * when tracing REDUCE actions.
+   */
   for (i = 0, rp = lemp->rule; rp; rp = rp->next, i++) {
     assert(rp->index == i);
     fprintf(out, " /* %3d */ \"", i);
@@ -1316,9 +1295,9 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   tplt_xfer(lemp->name, in, out, &lineno);
 
   /* Generate code which executes every time a symbol is popped from
-  ** the stack while processing errors or while destroying the parser.
-  ** (In other words, generate the %destructor actions)
-  */
+   * the stack while processing errors or while destroying the parser.
+   * (In other words, generate the %destructor actions)
+   */
   if (lemp->tokendest) {
     int once = 1;
     for (i = 0; i < lemp->nsymbol; i++) {
@@ -1392,10 +1371,10 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   tplt_xfer(lemp->name, in, out, &lineno);
 
   /* Generate the table of rule information
-  **
-  ** Note: This code depends on the fact that rules are number
-  ** sequentually beginning with 0.
-  */
+   *
+   * Note: This code depends on the fact that rules are number
+   * sequentually beginning with 0.
+   */
   for (rp = lemp->rule; rp; rp = rp->next) {
     fprintf(out, "  { %d, %d },\n", rp->lhs->index, rp->nrhs);
     lineno++;
@@ -1408,11 +1387,11 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
   }
   /* First output rules other than the default: rule */
   for (rp = lemp->rule; rp; rp = rp->next) {
-    struct rule *rp2; /* Other rules with the same action */
+    struct rule *rp2; // Other rules with the same action
     if (rp->code == 0)
       continue;
     if (rp->code[0] == '\n' && rp->code[1] == 0)
-      continue; /* Will be default: */
+      continue; // Will be default:
     fprintf(out, "      case %d: /* ", rp->index);
     writeRuleText(out, rp);
     fprintf(out, " */\n");
@@ -1432,7 +1411,8 @@ ReportTable(struct lemon *lemp, int mhflag /* Output in makeheaders format if tr
     rp->code = 0;
   }
   /* Finally, output the default: rule.  We choose as the default: all
-  ** empty actions. */
+   * empty actions.
+   */
   fprintf(out, "      default:\n");
   lineno++;
   for (rp = lemp->rule; rp; rp = rp->next) {
@@ -1492,7 +1472,7 @@ ReportHeader(struct lemon *lemp) {
     nextChar = fgetc(in);
     fclose(in);
     if (i == lemp->nterminal && nextChar == EOF) {
-      /* No change in the file.  Don't rewrite it. */
+      // No change in the file.  Don't rewrite it.
       return;
     }
   }
@@ -1507,12 +1487,12 @@ ReportHeader(struct lemon *lemp) {
 }
 
 /* Reduce the size of the action tables, if possible, by making use
-** of defaults.
-**
-** In this version, we take the most frequent REDUCE action and make
-** it the default.  Except, there is no default if the wildcard token
-** is a possible look-ahead.
-*/
+ * of defaults.
+ *
+ * In this version, we take the most frequent REDUCE action and make
+ * it the default.  Except, there is no default if the wildcard token
+ * is a possible look-ahead.
+ */
 void
 CompressTables(struct lemon *lemp) {
   struct state *stp;
@@ -1556,9 +1536,9 @@ CompressTables(struct lemon *lemp) {
     }
 
     /* Do not make a default if the number of rules to default
-    ** is not at least 1 or if the wildcard token is a possible
-    ** lookahead.
-    */
+     * is not at least 1 or if the wildcard token is a possible
+     * lookahead.
+     */
     if (nbest < 1 || usesWildcard)
       continue;
 
@@ -1577,12 +1557,11 @@ CompressTables(struct lemon *lemp) {
   }
 }
 
-/*
-** Compare two states for sorting purposes.  The smaller state is the
-** one with the most non-terminal actions.  If they have the same number
-** of non-terminal actions, then the smaller is the one with the most
-** token actions.
-*/
+/* Compare two states for sorting purposes.  The smaller state is the
+ * one with the most non-terminal actions.  If they have the same number
+ * of non-terminal actions, then the smaller is the one with the most
+ * token actions.
+ */
 static int
 stateResortCompare(const void *a, const void *b) {
   const struct state *pA = *(const struct state **)a;
@@ -1600,10 +1579,9 @@ stateResortCompare(const void *a, const void *b) {
   return n;
 }
 
-/*
-** Renumber and resort states so that states with fewer choices
-** occur at the end.  Except, keep state 0 as the first state.
-*/
+/* Renumber and resort states so that states with fewer choices
+ * occur at the end.  Except, keep state 0 as the first state.
+ */
 void
 ResortStates(struct lemon *lemp) {
   int i;

@@ -8,10 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
-** Input file parser for the LEMON parser generator.
-*/
-
 /* The state of the parser */
 enum e_state {
   INITIALIZE,
@@ -38,28 +34,28 @@ enum e_state {
   WAITING_FOR_CLASS_TOKEN
 };
 struct pstate {
-  char *filename;             /* Name of the input file */
-  int tokenlineno;            /* Linenumber at which current token starts */
-  int errorcnt;               /* Number of errors so far */
-  char *tokenstart;           /* Text of current token */
-  struct lemon *gp;           /* Global state vector */
-  enum e_state state;         /* The state of the parser */
-  struct symbol *fallback;    /* The fallback token */
-  struct symbol *tkclass;     /* Token class symbol */
-  struct symbol *lhs;         /* Left-hand side of current rule */
-  const char *lhsalias;       /* Alias for the LHS */
-  int nrhs;                   /* Number of right-hand side symbols seen */
-  struct symbol *rhs[MAXRHS]; /* RHS symbols */
-  const char *alias[MAXRHS];  /* Aliases for each RHS symbol (or NULL) */
-  struct rule *prevrule;      /* Previous rule parsed */
-  const char *declkeyword;    /* Keyword of a declaration */
-  char **declargslot;         /* Where the declaration argument should be put */
-  int insertLineMacro;        /* Add #line before declaration insert */
-  int *decllinenoslot;        /* Where to write declaration line number */
-  enum e_assoc declassoc;     /* Assign this association to decl arguments */
-  int preccounter;            /* Assign this precedence to decl arguments */
-  struct rule *firstrule;     /* Pointer to first rule in the grammar */
-  struct rule *lastrule;      /* Pointer to the most recently parsed rule */
+  char *filename;             // Name of the input file
+  int tokenlineno;            // Linenumber at which current token starts
+  int errorcnt;               // Number of errors so far
+  char *tokenstart;           // Text of current token
+  struct lemon *gp;           // Global state vector
+  enum e_state state;         // The state of the parser
+  struct symbol *fallback;    // The fallback token
+  struct symbol *tkclass;     // Token class symbol
+  struct symbol *lhs;         // Left-hand side of current rule
+  const char *lhsalias;       // Alias for the LHS
+  int nrhs;                   // Number of right-hand side symbols seen
+  struct symbol *rhs[MAXRHS]; // RHS symbols
+  const char *alias[MAXRHS];  // Aliases for each RHS symbol (or NULL)
+  struct rule *prevrule;      // Previous rule parsed
+  const char *declkeyword;    // Keyword of a declaration
+  char **declargslot;         // Where the declaration argument should be put
+  int insertLineMacro;        // Add #line before declaration insert
+  int *decllinenoslot;        // Where to write declaration line number
+  enum e_assoc declassoc;     // Assign this association to decl arguments
+  int preccounter;            // Assign this precedence to decl arguments
+  struct rule *firstrule;     // Pointer to first rule in the grammar
+  struct rule *lastrule;      // Pointer to the most recently parsed rule
 };
 
 // TODO: move
@@ -71,10 +67,10 @@ static void parseonetoken(struct pstate *);
 static void preprocess_input(char *);
 
 /* In spite of its name, this function is really a scanner.  It read
-** in the entire input file (all at once) then tokenizes it.  Each
-** token is passed to the function "parseonetoken" which builds all
-** the appropriate data structures in the global state vector "gp".
-*/
+ * in the entire input file (all at once) then tokenizes it.  Each
+ * token is passed to the function "parseonetoken" which builds all
+ * the appropriate data structures in the global state vector "gp".
+ */
 void
 Parse(struct lemon *gp) {
   struct pstate ps;
@@ -130,14 +126,14 @@ Parse(struct lemon *gp) {
     if (isspace(c)) {
       cp++;
       continue;
-    }                               /* Skip all white space */
-    if (c == '/' && cp[1] == '/') { /* Skip C++ style comments */
+    }                               // Skip all white space
+    if (c == '/' && cp[1] == '/') { // Skip C++ style comments
       cp += 2;
       while ((c = *cp) != 0 && c != '\n')
         cp++;
       continue;
     }
-    if (c == '/' && cp[1] == '*') { /* Skip C style comments */
+    if (c == '/' && cp[1] == '*') { // Skip C style comments
       cp += 2;
       while ((c = *cp) != 0 && (c != '/' || cp[-1] != '*')) {
         if (c == '\n')
@@ -148,9 +144,9 @@ Parse(struct lemon *gp) {
         cp++;
       continue;
     }
-    ps.tokenstart = cp;      /* Mark the beginning of the token */
-    ps.tokenlineno = lineno; /* Linenumber on which token begins */
-    if (c == '\"') {         /* String literals */
+    ps.tokenstart = cp;      // Mark the beginning of the token
+    ps.tokenlineno = lineno; // Linenumber on which token begins
+    if (c == '\"') {         // String literals
       cp++;
       while ((c = *cp) != 0 && c != '\"') {
         if (c == '\n')
@@ -164,7 +160,7 @@ Parse(struct lemon *gp) {
       } else {
         nextcp = cp + 1;
       }
-    } else if (c == '{') { /* A block of C code */
+    } else if (c == '{') { // A block of C code
       int level;
       cp++;
       for (level = 1; (c = *cp) != 0 && (level > 1 || c != '}'); cp++) {
@@ -174,7 +170,7 @@ Parse(struct lemon *gp) {
           level++;
         else if (c == '}')
           level--;
-        else if (c == '/' && cp[1] == '*') { /* Skip comments */
+        else if (c == '/' && cp[1] == '*') { // Skip comments
           int prevc;
           cp = &cp[2];
           prevc = 0;
@@ -184,13 +180,13 @@ Parse(struct lemon *gp) {
             prevc = c;
             cp++;
           }
-        } else if (c == '/' && cp[1] == '/') { /* Skip C++ style comments too */
+        } else if (c == '/' && cp[1] == '/') { // Skip C++ style comments too
           cp = &cp[2];
           while ((c = *cp) != 0 && c != '\n')
             cp++;
           if (c)
             lineno++;
-        } else if (c == '\'' || c == '\"') { /* String a character literals */
+        } else if (c == '\'' || c == '\"') { // String a character literals
           int startchar, prevc;
           startchar = c;
           prevc = 0;
@@ -212,11 +208,11 @@ Parse(struct lemon *gp) {
       } else {
         nextcp = cp + 1;
       }
-    } else if (isalnum(c)) { /* Identifiers */
+    } else if (isalnum(c)) { // Identifiers
       while ((c = *cp) != 0 && (isalnum(c) || c == '_'))
         cp++;
       nextcp = cp;
-    } else if (c == ':' && cp[1] == ':' && cp[2] == '=') { /* The operator "::=" */
+    } else if (c == ':' && cp[1] == ':' && cp[2] == '=') { // The operator "::="
       cp += 3;
       nextcp = cp;
     } else if ((c == '/' || c == '|') && isalpha(cp[1])) {
@@ -224,17 +220,17 @@ Parse(struct lemon *gp) {
       while ((c = *cp) != 0 && (isalnum(c) || c == '_'))
         cp++;
       nextcp = cp;
-    } else { /* All other (one character) operators */
+    } else { // All other (one character) operators
       cp++;
       nextcp = cp;
     }
     c = *cp;
-    *cp = 0;            /* Null terminate the token */
-    parseonetoken(&ps); /* Parse the token */
-    *cp = (char)c;      /* Restore the buffer */
+    *cp = 0;            // Null terminate the token
+    parseonetoken(&ps); // Parse the token
+    *cp = (char)c;      // Restore the buffer
     cp = nextcp;
   }
-  free(filebuf); /* Release the buffer after parsing */
+  free(filebuf); // Release the buffer after parsing
   gp->rule = ps.firstrule;
   gp->errorcnt = ps.errorcnt;
 }
@@ -243,7 +239,7 @@ Parse(struct lemon *gp) {
 static void
 parseonetoken(struct pstate *psp) {
   const char *x;
-  x = Strsafe(psp->tokenstart); /* Save the token permanently */
+  x = Strsafe(psp->tokenstart); // Save the token permanently
   switch (psp->state) {
   case INITIALIZE:
     psp->prevrule = 0;
@@ -696,8 +692,6 @@ parseonetoken(struct pstate *psp) {
     }
     break;
   case RESYNC_AFTER_RULE_ERROR:
-  /*      if( x[0]=='.' ) psp->state = WAITING_FOR_DECL_OR_RULE;
-  **      break; */
   case RESYNC_AFTER_DECL_ERROR:
     if (x[0] == '.')
       psp->state = WAITING_FOR_DECL_OR_RULE;
@@ -708,10 +702,10 @@ parseonetoken(struct pstate *psp) {
 }
 
 /* Run the preprocessor over the input file text.  The global variables
-** azDefine[0] through azDefine[nDefine-1] contains the names of all defined
-** macros.  This routine looks for "%ifdef" and "%ifndef" and "%endif" and
-** comments them out.  Text in between is also commented out as appropriate.
-*/
+ * azDefine[0] through azDefine[nDefine-1] contains the names of all defined
+ * macros.  This routine looks for "%ifdef" and "%ifndef" and "%endif" and
+ * comments them out.  Text in between is also commented out as appropriate.
+ */
 static void
 preprocess_input(char *z) {
   int i, j, k;

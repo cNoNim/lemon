@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
-** This module implements routines use to construct the yy_action[] table.
-*/
-
 /* Free all memory associated with the given acttab */
 void
 acttab_free(struct acttab *p) {
@@ -30,10 +26,10 @@ acttab_alloc(void) {
 }
 
 /* Add a new action to the current transaction set.
-**
-** This routine is called once for each lookahead for a particular
-** state.
-*/
+ *
+ * This routine is called once for each lookahead for a particular
+ * state.
+ */
 void
 acttab_action(struct acttab *p, int lookahead, int action) {
   if (p->nLookahead >= p->nLookaheadAlloc) {
@@ -61,22 +57,21 @@ acttab_action(struct acttab *p, int lookahead, int action) {
   p->nLookahead++;
 }
 
-/*
-** Add the transaction set built up with prior calls to acttab_action()
-** into the current action table.  Then reset the transaction set back
-** to an empty set in preparation for a new round of acttab_action() calls.
-**
-** Return the offset into the action table of the new transaction.
-*/
+/* Add the transaction set built up with prior calls to acttab_action()
+ * into the current action table.  Then reset the transaction set back
+ * to an empty set in preparation for a new round of acttab_action() calls.
+ *
+ * Return the offset into the action table of the new transaction.
+ */
 int
 acttab_insert(struct acttab *p) {
   int i, j, k, n;
   assert(p->nLookahead > 0);
 
   /* Make sure we have enough space to hold the expanded action table
-  ** in the worst case.  The worst case occurs if the transaction set
-  ** must be appended to the current action table
-  */
+   * in the worst case.  The worst case occurs if the transaction set
+   * must be appended to the current action table
+   */
   n = p->mxLookahead + 1;
   if (p->nAction + n >= p->nActionAlloc) {
     int oldAlloc = p->nActionAlloc;
@@ -93,15 +88,16 @@ acttab_insert(struct acttab *p) {
   }
 
   /* Scan the existing action table looking for an offset that is a
-  ** duplicate of the current transaction set.  Fall out of the loop
-  ** if and when the duplicate is found.
-  **
-  ** i is the index in p->aAction[] where p->mnLookahead is inserted.
-  */
+   * duplicate of the current transaction set.  Fall out of the loop
+   * if and when the duplicate is found.
+   *
+   * i is the index in p->aAction[] where p->mnLookahead is inserted.
+   */
   for (i = p->nAction - 1; i >= 0; i--) {
     if (p->aAction[i].lookahead == p->mnLookahead) {
       /* All lookaheads and actions in the aLookahead[] transaction
-      ** must match against the candidate aAction[i] entry. */
+       * must match against the candidate aAction[i] entry.
+       */
       if (p->aAction[i].action != p->mnAction)
         continue;
       for (j = 0; j < p->nLookahead; j++) {
@@ -117,7 +113,8 @@ acttab_insert(struct acttab *p) {
         continue;
 
       /* No possible lookahead value that is not in the aLookahead[]
-      ** transaction is allowed to match aAction[i] */
+       * transaction is allowed to match aAction[i]
+       */
       n = 0;
       for (j = 0; j < p->nAction; j++) {
         if (p->aAction[j].lookahead < 0)
@@ -126,20 +123,21 @@ acttab_insert(struct acttab *p) {
           n++;
       }
       if (n == p->nLookahead) {
-        break; /* An exact match is found at offset i */
+        break; // An exact match is found at offset i
       }
     }
   }
 
   /* If no existing offsets exactly match the current transaction, find an
-  ** an empty offset in the aAction[] table in which we can add the
-  ** aLookahead[] transaction.
-  */
+   * an empty offset in the aAction[] table in which we can add the
+   * aLookahead[] transaction.
+   */
   if (i < 0) {
     /* Look for holes in the aAction[] table that fit the current
-    ** aLookahead[] transaction.  Leave i set to the offset of the hole.
-    ** If no holes are found, i is left at p->nAction, which means the
-    ** transaction will be appended. */
+     * aLookahead[] transaction.  Leave i set to the offset of the hole.
+     * If no holes are found, i is left at p->nAction, which means the
+     * transaction will be appended.
+     */
     for (i = 0; i < p->nActionAlloc - p->mxLookahead; i++) {
       if (p->aAction[i].lookahead < 0) {
         for (j = 0; j < p->nLookahead; j++) {
@@ -156,7 +154,7 @@ acttab_insert(struct acttab *p) {
             break;
         }
         if (j == p->nAction) {
-          break; /* Fits in empty slots */
+          break; // Fits in empty slots
         }
       }
     }
@@ -171,6 +169,7 @@ acttab_insert(struct acttab *p) {
   p->nLookahead = 0;
 
   /* Return the offset that is added to the lookahead in order to get the
-  ** index into yy_action of the action */
+   * index into yy_action of the action
+   */
   return i - p->mnLookahead;
 }

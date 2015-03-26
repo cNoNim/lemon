@@ -85,15 +85,15 @@ OptPrint() {
       break;
     case OPT_INT:
     case OPT_FINT:
-      len += 9; /* length of "<integer>" */
+      len += 9; // length of "<integer>"
       break;
     case OPT_DBL:
     case OPT_FDBL:
-      len += 6; /* length of "<real>" */
+      len += 6; // length of "<real>"
       break;
     case OPT_STR:
     case OPT_FSTR:
-      len += 8; /* length of "<string>" */
+      len += 8; // length of "<string>"
       break;
     }
     if (len > max)
@@ -123,10 +123,9 @@ OptPrint() {
   }
 }
 
-/*
-** Print the command line with a carrot pointing to the k-th character
-** of the n-th field.
-*/
+/* Print the command line with a carrot pointing to the k-th character
+ * of the n-th field.
+ */
 static void
 errline(int n, size_t k, FILE *err) {
   size_t spcnt;
@@ -148,10 +147,9 @@ errline(int n, size_t k, FILE *err) {
   }
 }
 
-/*
-** Return the index of the N-th non-switch argument.  Return -1
-** if N is out of range.
-*/
+/* Return the index of the N-th non-switch argument.  Return -1
+ * if N is out of range.
+ */
 static int
 argindex(int n) {
   int i;
@@ -170,9 +168,7 @@ argindex(int n) {
   return -1;
 }
 
-/*
-** Process a flag command line argument.
-*/
+/* Process a flag command line argument. */
 static int
 handleflags(int i, FILE *err) {
   int v;
@@ -207,9 +203,7 @@ handleflags(int i, FILE *err) {
   return errcnt;
 }
 
-/*
-** Process a command line switch which has an argument.
-*/
+/* Process a command line switch which has an argument. */
 static int
 handleswitch(int i, FILE *err) {
   int lv = 0;

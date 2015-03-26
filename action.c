@@ -5,10 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
-** Routines processing parser actions in the LEMON parser generator.
-*/
-
 static int actioncmp(struct action *, struct action *);
 
 /* Allocate a new parser action */
@@ -57,9 +53,9 @@ Action_sort(struct action *ap) {
 }
 
 /* Compare two actions for sorting purposes.  Return negative, zero, or
-** positive if the first action is less than, equal to, or greater than
-** the first
-*/
+ * positive if the first action is less than, equal to, or greater than
+ * the first
+ */
 static int
 actioncmp(struct action *ap1, struct action *ap2) {
   int rc;

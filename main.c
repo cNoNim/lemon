@@ -1,12 +1,3 @@
-/*
-** This file contains all sources (including headers) to the LEMON
-** LALR(1) parser generator.  The sources have been combined into a
-** single file to make it easy to include LEMON in the source tree
-** and Makefile of another program.
-**
-** The author of this program disclaims copyright.
-*/
-
 #include "build.h"
 #include "option.h"
 #include "parse.h"
@@ -27,16 +18,12 @@
   \
 }
 
-/*
-** Main program file for the LEMON parser generator.
-*/
-
 /* forward declaration */
 static void handle_D_option(char *);
 static void handle_T_option(char *);
 
-int nDefine = 0;     /* Number of -D options on the command line */
-char **azDefine = 0; /* Name of the -D macros */
+int nDefine = 0;     // Number of -D options on the command line
+char **azDefine = 0; // Name of the -D macros
 int showPrecedenceConflict = 0;
 char *user_templatename = NULL;
 
@@ -136,11 +123,13 @@ main(int argc, char **argv) {
     FindRulePrecedences(&lem);
 
     /* Compute the lambda-nonterminals and the first-sets for every
-    ** nonterminal */
+     * nonterminal
+     */
     FindFirstSets(&lem);
 
     /* Compute all LR(0) states.  Also record follow-set propagation
-    ** links so that the follow-set can be computed later */
+     * links so that the follow-set can be computed later
+     */
     lem.nstate = 0;
     FindStates(&lem);
     lem.sorted = State_arrayof();
@@ -159,8 +148,9 @@ main(int argc, char **argv) {
       CompressTables(&lem);
 
     /* Reorder and renumber the states so that states with fewer choices
-    ** occur at the end.  This is an optimization that helps make the
-    ** generated parser tables smaller. */
+     * occur at the end.  This is an optimization that helps make the
+     * generated parser tables smaller.
+     */
     if (noResort == 0)
       ResortStates(&lem);
 
@@ -172,8 +162,9 @@ main(int argc, char **argv) {
     ReportTable(&lem, mhflag);
 
     /* Produce a header file for use by the scanner.  (This step is
-    ** omitted if the "-m" option is used because makeheaders will
-    ** generate the file for us.) */
+     * omitted if the "-m" option is used because makeheaders will
+     * generate the file for us.)
+     */
     if (!mhflag)
       ReportHeader(&lem);
   }
@@ -193,8 +184,8 @@ main(int argc, char **argv) {
 }
 
 /* This routine is called with the argument to each -D command-line option.
-** Add the macro defined to the azDefine array.
-*/
+ * Add the macro defined to the azDefine array.
+ */
 static void
 handle_D_option(char *z) {
   char **paz;

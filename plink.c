@@ -3,10 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/*
-** Routines processing configuration follow-set propagation links
-** in the LEMON parser generator.
-*/
 static struct plink *plink_freelist = 0;
 
 /* Allocate a new plink */
