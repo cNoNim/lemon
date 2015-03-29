@@ -1,6 +1,11 @@
 #ifndef _LEMON_BUILD_H_
 #define _LEMON_BUILD_H_
 
+/*
+ * Routines to construction the finite state machine for the LEMON
+ * parser generator.
+ */
+
 struct lemon;
 
 void FindRulePrecedences(struct lemon *);

@@ -1,11 +1,14 @@
 #ifndef _LEMON_CONFIGLIST_H_
 #define _LEMON_CONFIGLIST_H_
 
-struct lemon;
-struct plink;
-struct rule;
-struct state;
+/*
+ * Routines to processing a configuration list and building a state
+ * in the LEMON parser generator.
+ */
+
 struct config;
+struct lemon;
+struct rule;
 
 void Configlist_init(void);
 struct config *Configlist_add(struct rule *, int);
