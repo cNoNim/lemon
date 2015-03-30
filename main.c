@@ -1,3 +1,5 @@
+#include "error.h"
+
 #include "build.h"
 #include "option.h"
 #include "parse.h"
@@ -10,13 +12,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MemoryCheck(X)          \
-  if ((X) == 0) {               \
-    extern void memory_error(); \
-    memory_error();             \
-  \
-}
 
 /* forward declaration */
 static void handle_D_option(char *);
@@ -63,12 +58,11 @@ main(int argc, char **argv) {
 
   OptInit(argv, options, stderr);
   if (version) {
-    printf("Lemon version 1.0\n");
-    exit(0);
+    lprintf(LINFO, "Lemon version 1.0");
+    exit(EXIT_SUCCESS);
   }
   if (OptNArgs() != 1) {
-    fprintf(stderr, "Exactly one filename argument is required.\n");
-    exit(1);
+    lprintf(LFATAL, "Exactly one filename argument is required.");
   }
   memset(&lem, 0, sizeof(lem));
   lem.errorcnt = 0;
@@ -90,8 +84,7 @@ main(int argc, char **argv) {
   if (lem.errorcnt)
     exit(lem.errorcnt);
   if (lem.nrule == 0) {
-    fprintf(stderr, "Empty grammar.\n");
-    exit(1);
+    lprintf(LFATAL, "Empty grammar.");
   }
 
   /* Count and index the symbols of the grammar */
@@ -191,16 +184,10 @@ handle_D_option(char *z) {
   char **paz;
   nDefine++;
   azDefine = (char **)realloc(azDefine, sizeof(azDefine[0]) * nDefine);
-  if (azDefine == 0) {
-    fprintf(stderr, "out of memory\n");
-    exit(1);
-  }
+  MemoryCheck(azDefine);
   paz = &azDefine[nDefine - 1];
   *paz = (char *)malloc(strlen(z) + 1);
-  if (*paz == 0) {
-    fprintf(stderr, "out of memory\n");
-    exit(1);
-  }
+  MemoryCheck(*paz);
   strcpy(*paz, z);
   for (z = *paz; *z && *z != '='; z++) {
   }

@@ -1,4 +1,5 @@
 #include "acttab.h"
+#include "error.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -17,10 +18,7 @@ acttab_free(struct acttab *p) {
 struct acttab *
 acttab_alloc(void) {
   struct acttab *p = (struct acttab *)calloc(1, sizeof(*p));
-  if (p == 0) {
-    fprintf(stderr, "Unable to allocate memory for a new acttab.");
-    exit(1);
-  }
+  MemoryCheck(o);
   memset(p, 0, sizeof(*p));
   return p;
 }
@@ -35,10 +33,7 @@ acttab_action(struct acttab *p, int lookahead, int action) {
   if (p->nLookahead >= p->nLookaheadAlloc) {
     p->nLookaheadAlloc += 25;
     p->aLookahead = (struct lookahead_action *)realloc(p->aLookahead, sizeof(p->aLookahead[0]) * p->nLookaheadAlloc);
-    if (p->aLookahead == 0) {
-      fprintf(stderr, "malloc failed\n");
-      exit(1);
-    }
+    MemoryCheck(p->aLookahead);
   }
   if (p->nLookahead == 0) {
     p->mxLookahead = lookahead;
@@ -77,10 +72,7 @@ acttab_insert(struct acttab *p) {
     int oldAlloc = p->nActionAlloc;
     p->nActionAlloc = p->nAction + n + p->nActionAlloc + 20;
     p->aAction = (struct lookahead_action *)realloc(p->aAction, sizeof(p->aAction[0]) * p->nActionAlloc);
-    if (p->aAction == 0) {
-      fprintf(stderr, "malloc failed\n");
-      exit(1);
-    }
+    MemoryCheck(p->aAction);
     for (i = oldAlloc; i < p->nActionAlloc; i++) {
       p->aAction[i].lookahead = -1;
       p->aAction[i].action = -1;

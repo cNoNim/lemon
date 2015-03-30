@@ -8,13 +8,6 @@
 
 #include <assert.h>
 
-#define MemoryCheck(X)          \
-  if ((X) == 0) {               \
-    extern void memory_error(); \
-    memory_error();             \
-  \
-}
-
 /* forward declarations */
 static void buildshifts(struct lemon *, struct state *);
 static struct state *getstate(struct lemon *);

@@ -1,4 +1,5 @@
 #include "action.h"
+#include "error.h"
 #include "msort.h"
 #include "table.h"
 
@@ -17,10 +18,7 @@ Action_new(void) {
     int i;
     size_t amt = 100;
     freelist = (struct action *)calloc(amt, sizeof(struct action));
-    if (freelist == 0) {
-      fprintf(stderr, "Unable to allocate memory for a new parser action.");
-      exit(1);
-    }
+    MemoryCheck(freelist);
     for (i = 0; i < amt - 1; i++)
       freelist[i].next = &freelist[i + 1];
     freelist[amt - 1].next = 0;

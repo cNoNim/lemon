@@ -1,3 +1,4 @@
+#include "error.h"
 #include "plink.h"
 
 #include <stdio.h>
@@ -14,10 +15,7 @@ Plink_new() {
     int i;
     size_t amt = 100;
     plink_freelist = (struct plink *)calloc(amt, sizeof(struct plink));
-    if (plink_freelist == 0) {
-      fprintf(stderr, "Unable to allocate memory for a new follow-set propagation link.\n");
-      exit(1);
-    }
+    MemoryCheck(plink_freelist);
     for (i = 0; i < amt - 1; i++)
       plink_freelist[i].next = &plink_freelist[i + 1];
     plink_freelist[amt - 1].next = 0;

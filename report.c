@@ -42,10 +42,7 @@ file_makename(struct lemon *lemp, const char *suffix) {
   char *cp;
 
   name = (char *)malloc(strlen(lemp->filename) + strlen(suffix) + 5);
-  if (name == 0) {
-    fprintf(stderr, "Can't allocate space for a filename.\n");
-    exit(1);
-  }
+  MemoryCheck(name);
   strcpy(name, lemp->filename);
   cp = strrchr(name, '.');
   if (cp)
@@ -67,7 +64,7 @@ file_open(struct lemon *lemp, const char *suffix, const char *mode) {
   lemp->outname = file_makename(lemp, suffix);
   fp = fopen(lemp->outname, mode);
   if (fp == 0 && *mode == 'w') {
-    fprintf(stderr, "Can't open file \"%s\".\n", lemp->outname);
+    lprintf(LERROR, "Can't open file \"%s\".", lemp->outname);
     lemp->errorcnt++;
     return 0;
   }
@@ -386,13 +383,13 @@ tplt_open(struct lemon *lemp) {
   /* first, see if user specified a template filename on the command line. */
   if (user_templatename != 0) {
     if (access(user_templatename, 004) == -1) {
-      fprintf(stderr, "Can't find the parser driver template file \"%s\".\n", user_templatename);
+      lprintf(LERROR, "\"Can't find the parser driver template file \\\"%s\\\".", user_templatename);
       lemp->errorcnt++;
       return 0;
     }
     in = fopen(user_templatename, "rb");
     if (in == 0) {
-      fprintf(stderr, "Can't open the template file \"%s\".\n", user_templatename);
+      lprintf(LERROR, "Can't open the template file \"%s\".", user_templatename);
       lemp->errorcnt++;
       return 0;
     }
@@ -413,13 +410,13 @@ tplt_open(struct lemon *lemp) {
     tpltname = pathsearch(lemp->argv0, templatename, 0);
   }
   if (tpltname == 0) {
-    fprintf(stderr, "Can't find the parser driver template file \"%s\".\n", templatename);
+    lprintf(LERROR, "Can't find the parser driver template file \"%s\".", templatename);
     lemp->errorcnt++;
     return 0;
   }
   in = fopen(tpltname, "rb");
   if (in == 0) {
-    fprintf(stderr, "Can't open the template file \"%s\".\n", templatename);
+    lprintf(LERROR, "Can't open the template file \"%s\".", templatename);
     lemp->errorcnt++;
     return 0;
   }
@@ -723,10 +720,7 @@ print_stack_union(FILE *out,          // The output stream
   /* Allocate and initialize types[] and allocate stddt[] */
   arraysize = (size_t)(lemp->nsymbol * 2);
   types = (char **)calloc(arraysize, sizeof(char *));
-  if (types == 0) {
-    fprintf(stderr, "Out of memory.\n");
-    exit(1);
-  }
+  MemoryCheck(types);
   for (i = 0; i < arraysize; i++)
     types[i] = 0;
   maxdtlength = 0;
@@ -743,10 +737,7 @@ print_stack_union(FILE *out,          // The output stream
       maxdtlength = len;
   }
   stddt = (char *)malloc(maxdtlength * 2 + 1);
-  if (stddt == 0) {
-    fprintf(stderr, "Out of memory.\n");
-    exit(1);
-  }
+  MemoryCheck(stddt);
 
   /* Build a hash table of datatypes. The ".dtnum" field of each symbol
    * is filled in with the hash index plus 1.  A ".dtnum" value of 0 is
@@ -797,10 +788,7 @@ print_stack_union(FILE *out,          // The output stream
     if (types[hash] == 0) {
       sp->dtnum = hash + 1;
       types[hash] = (char *)malloc(strlen(stddt) + 1);
-      if (types[hash] == 0) {
-        fprintf(stderr, "Out of memory.\n");
-        exit(1);
-      }
+      MemoryCheck(types[hash]);
       strcpy(types[hash], stddt);
     }
   }
@@ -1052,10 +1040,7 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
 
   /* Compute the actions on all states and count them up */
   ax = (struct axset *)calloc(lemp->nstate * 2, sizeof(ax[0]));
-  if (ax == 0) {
-    fprintf(stderr, "malloc failed\n");
-    exit(1);
-  }
+  MemoryCheck(ax);
   for (i = 0; i < lemp->nstate; i++) {
     stp = lemp->sorted[i];
     ax[i * 2].stp = stp;

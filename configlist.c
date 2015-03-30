@@ -207,10 +207,7 @@ newconfig() {
     int i;
     size_t amt = 3;
     freelist = (struct config *)calloc(amt, sizeof(struct config));
-    if (freelist == 0) {
-      fprintf(stderr, "Unable to allocate memory for a new configuration.");
-      exit(1);
-    }
+    MemoryCheck(freelist);
     for (i = 0; i < amt - 1; i++)
       freelist[i].next = &freelist[i + 1];
     freelist[amt - 1].next = 0;

@@ -1,16 +1,10 @@
+#include "error.h"
 #include "configlist.h"
 #include "table.h"
 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MemoryCheck(X)          \
-  if ((X) == 0) {               \
-    extern void memory_error(); \
-    memory_error();             \
-  \
-}
 
 /* There is one instance of the following structure for each
  * associative array of type "x1".

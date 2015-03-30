@@ -758,7 +758,6 @@ preprocess_input(char *z) {
     }
   }
   if (exclude) {
-    fprintf(stderr, "unterminated %%ifdef starting on line %d\n", start_lineno);
-    exit(1);
+    lprintf(LFATAL, "unterminated %%ifdef starting on line %d", start_lineno);
   }
 }
