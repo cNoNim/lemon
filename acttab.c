@@ -18,7 +18,7 @@ acttab_free(struct acttab *p) {
 struct acttab *
 acttab_alloc(void) {
   struct acttab *p = (struct acttab *)calloc(1, sizeof(*p));
-  MemoryCheck(o);
+  MemoryCheck(p);
   memset(p, 0, sizeof(*p));
   return p;
 }

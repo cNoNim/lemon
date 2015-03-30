@@ -82,7 +82,7 @@ main(int argc, char **argv) {
   /* Parse the input file */
   Parse(&lem);
   if (lem.errorcnt)
-    exit(lem.errorcnt);
+    exit(EXIT_FAILURE);
   if (lem.nrule == 0) {
     lprintf(LFATAL, "Empty grammar.");
   }
@@ -162,13 +162,14 @@ main(int argc, char **argv) {
       ReportHeader(&lem);
   }
   if (statistics) {
-    printf("Parser statistics: %d terminals, %d nonterminals, %d rules\n", lem.nterminal, lem.nsymbol - lem.nterminal,
-           lem.nrule);
-    printf("                   %d states, %d parser table entries, %d conflicts\n", lem.nstate, lem.tablesize,
-           lem.nconflict);
+    lprintf(LINFO,
+            "Parser statistics: %d terminals, %d nonterminals, %d rules\n"
+            "\t%d states, %d parser table entries, %d conflicts\n",
+            lem.nterminal, lem.nsymbol - lem.nterminal, lem.nrule, lem.nstate,
+            lem.tablesize, lem.nconflict);
   }
   if (lem.nconflict > 0) {
-    fprintf(stderr, "%d parsing conflicts.\n", lem.nconflict);
+    lprintf(LERROR, "%d parsing conflicts.\n", lem.nconflict);
   }
 
   /* return 0 on success, 1 on failure. */

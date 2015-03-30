@@ -1,3 +1,5 @@
+#include "error.h"
+
 #include <assert.h>
 #include <stdlib.h>
 
@@ -14,10 +16,7 @@ char *
 SetNew() {
   char *s;
   s = (char *)calloc((size_t)size, 1);
-  if (s == 0) {
-    extern void memory_error();
-    memory_error();
-  }
+  MemoryCheck(s);
   return s;
 }
 
