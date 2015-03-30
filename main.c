@@ -1,7 +1,7 @@
+#include "arg.h"
 #include "error.h"
 
 #include "build.h"
-#include "option.h"
 #include "parse.h"
 #include "report.h"
 #include "set.h"
@@ -10,58 +10,80 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* forward declaration */
 static void handle_D_option(char *);
 static void handle_T_option(char *);
+static void usage();
+
+char * argv0;
 
 int nDefine = 0;     // Number of -D options on the command line
 char **azDefine = 0; // Name of the -D macros
-int showPrecedenceConflict = 0;
+bool showPrecedenceConflict = false;
 char *user_templatename = NULL;
 
 /* The main program.  Parse the command line and do it... */
 int
 main(int argc, char **argv) {
-  static int version = 0;
-  static int rpflag = 0;
-  static int basisflag = 0;
-  static int compress = 0;
-  static int quiet = 0;
-  static int statistics = 0;
-  static int mhflag = 0;
-  static int nolinenosflag = 0;
-  static int noResort = 0;
-  static struct s_options options[] = {
-      {OPT_FLAG, "b", (char *)&basisflag, "Print only the basis in report."},
-      {OPT_FLAG, "c", (char *)&compress, "Don't compress the action table."},
-      {OPT_FSTR, "D", (char *)handle_D_option, "Define an %ifdef macro."},
-      {OPT_FSTR, "f", 0, "Ignored.  (Placeholder for -f compiler options.)"},
-      {OPT_FLAG, "g", (char *)&rpflag, "Print grammar without actions."},
-      {OPT_FSTR, "I", 0, "Ignored.  (Placeholder for '-I' compiler options.)"},
-      {OPT_FLAG, "m", (char *)&mhflag, "Output a makeheaders compatible file."},
-      {OPT_FLAG, "l", (char *)&nolinenosflag, "Do not print #line statements."},
-      {OPT_FSTR, "O", 0, "Ignored.  (Placeholder for '-O' compiler options.)"},
-      {OPT_FLAG, "p", (char *)&showPrecedenceConflict, "Show conflicts resolved by precedence rules"},
-      {OPT_FLAG, "q", (char *)&quiet, "(Quiet) Don't print the report file."},
-      {OPT_FLAG, "r", (char *)&noResort, "Do not sort or renumber states"},
-      {OPT_FLAG, "s", (char *)&statistics, "Print parser stats to standard output."},
-      {OPT_FLAG, "x", (char *)&version, "Print the version number."},
-      {OPT_FSTR, "T", (char *)handle_T_option, "Specify a template file."},
-      {OPT_FSTR, "W", 0, "Ignored.  (Placeholder for '-W' compiler options.)"},
-      {OPT_FLAG, 0, 0, 0}};
+  static bool rpflag = false;
+  static bool basisflag = false;
+  static bool compress = false;
+  static bool quiet = false;
+  static bool statistics = false;
+  static bool nolinenosflag = false;
+  static bool noResort = false;
+  // TODO: remove this flag
+  static bool mhflag = true;
+
   int i;
   int exitcode;
   struct lemon lem;
 
-  OptInit(argv, options, stderr);
-  if (version) {
-    lprintf(LINFO, "Lemon version 1.0");
-    exit(EXIT_SUCCESS);
-  }
-  if (OptNArgs() != 1) {
+  ARGBEGIN {
+    case 'D':
+      handle_D_option(ARGF());
+      break;
+    case 'T':
+      handle_T_option(ARGF());
+      break;
+    case 'b':
+      basisflag = true;
+      break;
+    case 'c':
+      compress = true;
+      break;
+    case 'g':
+      rpflag = true;
+      break;
+    case 'l':
+      nolinenosflag = true;
+      break;
+    case 'p':
+      showPrecedenceConflict = true;
+      break;
+    case 'q':
+      quiet = true;
+      break;
+    case 'r':
+      noResort = true;
+      break;
+    case 's':
+      statistics = true;
+      break;
+    case 'V':
+      lprintf(LINFO, "Lemon version 1.0");
+      exit(EXIT_SUCCESS);
+    default:
+    case 'h':
+    case '?':
+      usage();
+  } ARGEND;
+  if (argc != 1) {
     lprintf(LFATAL, "Exactly one filename argument is required.");
   }
   memset(&lem, 0, sizeof(lem));
@@ -71,8 +93,8 @@ main(int argc, char **argv) {
   Strsafe_init();
   Symbol_init();
   State_init();
-  lem.argv0 = argv[0];
-  lem.filename = OptArg(0);
+  lem.argv0 = argv0;
+  lem.filename = argv[0];
   lem.basisflag = basisflag;
   lem.nolinenosflag = nolinenosflag;
   Symbol_new("$");
@@ -200,4 +222,26 @@ handle_T_option(char *z) {
   user_templatename = (char *)malloc(strlen(z) + 1);
   MemoryCheck(user_templatename);
   strcpy(user_templatename, z);
+}
+
+
+static void
+usage() {
+  fprintf(stderr,
+          "usage: %s -h\n"
+          "usage: %s -V\n"
+          "usage: %s [-bcglpqrs] [-D define] [-T template] grammar\n"
+          "\t-b\tPrint only the basis in report.\n"
+          "\t-c\tDon't compress the action table.\n"
+          "\t-g\tPrint grammar without actions.\n"
+          "\t-l\tDo not print #line statements.\n"
+          "\t-p\tShow conflicts resolved by precedence rules\n"
+          "\t-q\t(Quiet) Don't print the report file.\n"
+          "\t-r\tDo not sort or renumber states\n"
+          "\t-s\tPrint parser stats to standard output.\n"
+          "\t-T\tSpecify a template file.\n"
+          "\t-D\tDefine an %%ifdef macro.\n"
+          "\t-h\tPrint usage infirmation.\n"
+          "\t-V\tPrint the version number.\n", argv0, argv0, argv0);
+  exit(EXIT_SUCCESS);
 }
