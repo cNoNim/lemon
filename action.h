@@ -5,11 +5,7 @@
  * Routines processing parser actions in the LEMON parser generator.
  */
 
-struct rule;
-struct state;
-struct symbol;
-
-enum e_action {
+enum action_type {
   SHIFT,
   ACCEPT,
   REDUCE,
@@ -23,19 +19,23 @@ enum e_action {
 };
 
 /* Every shift or reduce operation is stored as one of the following */
+struct action_list {
+  struct action *item;
+  struct action_list *next;
+};
+
 struct action {
   struct symbol *sp; // The look-ahead symbol
-  enum e_action type;
+  enum action_type type;
   union {
     struct state *stp; // The new state, if a shift
     struct rule *rp;   // The rule, if a reduce
   } x;
-  struct action *next;    // Next action for this state
-  struct action *collide; // Next action with the same hash
 };
 
-struct action *Action_new(void);
-void Action_add(struct action **, enum e_action, struct symbol *, char *);
-struct action *Action_sort(struct action *);
+struct action_list *action_list_insert(struct action *action, struct action_list **list);
+void action_list_sort(struct action_list **list);
+
+struct action *make_action(struct symbol *symbol, enum action_type type, void *arg);
 
 #endif //_LEMON_ACTION_H_

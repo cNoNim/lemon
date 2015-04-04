@@ -7,6 +7,7 @@
 #include "table.h"
 
 #include <assert.h>
+#include <stdlib.h>
 
 /* forward declarations */
 static void buildshifts(struct lemon *, struct state *);
@@ -35,7 +36,8 @@ FindActions(struct lemon *lemp) {
           if (SetFind(cfp->fws, j)) {
             /* Add a reduce action to the state "stp" which will reduce by the
              * rule "cfp->rp" if the lookahead symbol is "lemp->symbols[j]" */
-            Action_add(&stp->ap, REDUCE, lemp->symbols[j], (char *)cfp->rp);
+            action_list_insert(make_action(lemp->symbols[j], REDUCE, cfp->rp), &stp->actions);
+            // TODO: check rewrite Action_add(&stp->ap, REDUCE, lemp->symbols[j], (char *)cfp->rp);
           }
         }
       }
@@ -54,21 +56,21 @@ FindActions(struct lemon *lemp) {
    * finite state machine) an action to ACCEPT if the lookahead is the
    * start nonterminal.
    */
-  Action_add(&lemp->sorted[0]->ap, ACCEPT, sp, 0);
+  action_list_insert(make_action(sp, ACCEPT, 0), &lemp->sorted[0]->actions);
+  // TODO: check rewrite Action_add(&lemp->sorted[0]->ap, ACCEPT, sp, 0);
 
   /* Resolve conflicts */
   for (i = 0; i < lemp->nstate; i++) {
-    struct action *ap, *nap;
+    struct action_list *ap, *nap;
     struct state *stp;
     stp = lemp->sorted[i];
-    /* assert( stp->ap ); */
-    stp->ap = Action_sort(stp->ap);
-    for (ap = stp->ap; ap && ap->next; ap = ap->next) {
-      for (nap = ap->next; nap && nap->sp == ap->sp; nap = nap->next) {
-        /* The two actions "ap" and "nap" have the same lookahead.
+    action_list_sort(&stp->actions);
+    for (ap = stp->actions; ap && ap->next; ap = ap->next) {
+      for (nap = ap->next; nap && nap->item->sp == ap->item->sp; nap = nap->next) {
+        /* The two actions "ap->item" and "nap->item" have the same lookahead.
          * Figure out which one should be used
          */
-        lemp->nconflict += resolve_conflict(ap, nap);
+        lemp->nconflict += resolve_conflict(ap->item, nap->item);
       }
     }
   }
@@ -77,10 +79,10 @@ FindActions(struct lemon *lemp) {
   for (rp = lemp->rule; rp; rp = rp->next)
     rp->canReduce = false;
   for (i = 0; i < lemp->nstate; i++) {
-    struct action *ap;
-    for (ap = lemp->sorted[i]->ap; ap; ap = ap->next) {
-      if (ap->type == REDUCE)
-        ap->x.rp->canReduce = true;
+    struct action_list *ap;
+    for (ap = lemp->sorted[i]->actions; ap; ap = ap->next) {
+      if (ap->item->type == REDUCE)
+        ap->item->x.rp->canReduce = true;
     }
   }
   for (rp = lemp->rule; rp; rp = rp->next) {
@@ -380,10 +382,12 @@ buildshifts(struct lemon *lemp, struct state *stp) {
     if (sp->type == MULTITERMINAL) {
       int i;
       for (i = 0; i < sp->nsubsym; i++) {
-        Action_add(&stp->ap, SHIFT, sp->subsym[i], (char *)newstp);
+        action_list_insert(make_action(sp->subsym[i], SHIFT, newstp), &stp->actions);
+        // TODO: check rewrite Action_add(&stp->ap, SHIFT, sp->subsym[i], (char *)newstp);
       }
     } else {
-      Action_add(&stp->ap, SHIFT, sp, (char *)newstp);
+      action_list_insert(make_action(sp, SHIFT, newstp), &stp->actions);
+      // TODO: check rewrite Action_add(&stp->ap, SHIFT, sp, (char *)newstp);
     }
   }
 }
@@ -427,7 +431,7 @@ getstate(struct lemon *lemp) {
     stp->bp = bp;                   // Remember the configuration basis
     stp->cfp = cfp;                 // Remember the configuration closure
     stp->statenum = lemp->nstate++; // Every state gets a sequence number
-    stp->ap = 0;                    // No actions, yet.
+    stp->actions = NULL;            // No actions, yet.
     State_insert(stp, stp->bp);     // Add to the state table
     buildshifts(lemp, stp);         // Recursively compute successor states
   }

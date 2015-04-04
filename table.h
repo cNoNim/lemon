@@ -6,6 +6,7 @@
  */
 
 #include <stdbool.h>
+#include "action.h"
 
 struct config;
 
@@ -64,7 +65,7 @@ struct state {
   struct config *bp;     // The basis configurations for this state
   struct config *cfp;    // All configurations in this set
   int statenum;          // Sequential number for this state
-  struct action *ap;     // Array of actions for this state
+  struct action_list *actions;     // Array of actions for this state
   int nTknAct, nNtAct;   // Number of actions on terminals and nonterminals
   int iTknOfst, iNtOfst; // yy_action[] offset for terminals and nonterms
   int iDflt;             // Default action

@@ -198,7 +198,7 @@ ReportOutput(struct lemon *lemp) {
   int i;
   struct state *stp;
   struct config *cfp;
-  struct action *ap;
+  struct action_list *ap;
   FILE *fp;
 
   fp = file_open(lemp, ".out", "wb");
@@ -227,8 +227,8 @@ ReportOutput(struct lemon *lemp) {
         cfp = cfp->next;
     }
     fprintf(fp, "\n");
-    for (ap = stp->ap; ap; ap = ap->next) {
-      if (PrintAction(ap, fp, 30))
+    for (ap = stp->actions; ap; ap = ap->next) {
+      if (PrintAction(ap->item, fp, 30))
         fprintf(fp, "\n");
     }
     fprintf(fp, "\n");
@@ -905,7 +905,7 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
   char line[LINESIZE];
   int lineno;
   struct state *stp;
-  struct action *ap;
+  struct action_list *ap;
   struct rule *rp;
   struct acttab *pActtab;
   int i, j, n;
@@ -1064,14 +1064,14 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
   for (i = 0; i < lemp->nstate * 2 && ax[i].nAction > 0; i++) {
     stp = ax[i].stp;
     if (ax[i].isTkn) {
-      for (ap = stp->ap; ap; ap = ap->next) {
+      for (ap = stp->actions; ap; ap = ap->next) {
         int action;
-        if (ap->sp->index >= lemp->nterminal)
+        if (ap->item->sp->index >= lemp->nterminal)
           continue;
-        action = compute_action(lemp, ap);
+        action = compute_action(lemp, ap->item);
         if (action < 0)
           continue;
-        acttab_action(pActtab, ap->sp->index, action);
+        acttab_action(pActtab, ap->item->sp->index, action);
       }
       stp->iTknOfst = acttab_insert(pActtab);
       if (stp->iTknOfst < mnTknOfst)
@@ -1079,16 +1079,16 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
       if (stp->iTknOfst > mxTknOfst)
         mxTknOfst = stp->iTknOfst;
     } else {
-      for (ap = stp->ap; ap; ap = ap->next) {
+      for (ap = stp->actions; ap; ap = ap->next) {
         int action;
-        if (ap->sp->index < lemp->nterminal)
+        if (ap->item->sp->index < lemp->nterminal)
           continue;
-        if (ap->sp->index == lemp->nsymbol)
+        if (ap->item->sp->index == lemp->nsymbol)
           continue;
-        action = compute_action(lemp, ap);
+        action = compute_action(lemp, ap->item);
         if (action < 0)
           continue;
-        acttab_action(pActtab, ap->sp->index, action);
+        acttab_action(pActtab, ap->item->sp->index, action);
       }
       stp->iNtOfst = acttab_insert(pActtab);
       if (stp->iNtOfst < mnNtOfst)
@@ -1481,7 +1481,7 @@ ReportHeader(struct lemon *lemp) {
 void
 CompressTables(struct lemon *lemp) {
   struct state *stp;
-  struct action *ap, *ap2;
+  struct action_list *ap, *ap2;
   struct rule *rp, *rp2, *rbest;
   int nbest, n;
   int i;
@@ -1493,22 +1493,22 @@ CompressTables(struct lemon *lemp) {
     rbest = 0;
     usesWildcard = 0;
 
-    for (ap = stp->ap; ap; ap = ap->next) {
-      if (ap->type == SHIFT && ap->sp == lemp->wildcard) {
+    for (ap = stp->actions; ap; ap = ap->next) {
+      if (ap->item->type == SHIFT && ap->item->sp == lemp->wildcard) {
         usesWildcard = 1;
       }
-      if (ap->type != REDUCE)
+      if (ap->item->type != REDUCE)
         continue;
-      rp = ap->x.rp;
+      rp = ap->item->x.rp;
       if (rp->lhsStart)
         continue;
       if (rp == rbest)
         continue;
       n = 1;
       for (ap2 = ap->next; ap2; ap2 = ap2->next) {
-        if (ap2->type != REDUCE)
+        if (ap2->item->type != REDUCE)
           continue;
-        rp2 = ap2->x.rp;
+        rp2 = ap2->item->x.rp;
         if (rp2 == rbest)
           continue;
         if (rp2 == rp)
@@ -1528,17 +1528,17 @@ CompressTables(struct lemon *lemp) {
       continue;
 
     /* Combine matching REDUCE actions into a single default */
-    for (ap = stp->ap; ap; ap = ap->next) {
-      if (ap->type == REDUCE && ap->x.rp == rbest)
+    for (ap = stp->actions; ap; ap = ap->next) {
+      if (ap->item->type == REDUCE && ap->item->x.rp == rbest)
         break;
     }
     assert(ap);
-    ap->sp = Symbol_new("{default}");
+    ap->item->sp = Symbol_new("{default}");
     for (ap = ap->next; ap; ap = ap->next) {
-      if (ap->type == REDUCE && ap->x.rp == rbest)
-        ap->type = NOT_USED;
+      if (ap->item->type == REDUCE && ap->item->x.rp == rbest)
+        ap->item->type = NOT_USED;
     }
-    stp->ap = Action_sort(stp->ap);
+    action_list_sort(&stp->actions);
   }
 }
 
@@ -1571,7 +1571,7 @@ void
 ResortStates(struct lemon *lemp) {
   int i;
   struct state *stp;
-  struct action *ap;
+  struct action_list *ap;
 
   for (i = 0; i < lemp->nstate; i++) {
     stp = lemp->sorted[i];
@@ -1579,14 +1579,14 @@ ResortStates(struct lemon *lemp) {
     stp->iDflt = lemp->nstate + lemp->nrule;
     stp->iTknOfst = NO_OFFSET;
     stp->iNtOfst = NO_OFFSET;
-    for (ap = stp->ap; ap; ap = ap->next) {
-      if (compute_action(lemp, ap) >= 0) {
-        if (ap->sp->index < lemp->nterminal) {
+    for (ap = stp->actions; ap; ap = ap->next) {
+      if (compute_action(lemp, ap->item) >= 0) {
+        if (ap->item->sp->index < lemp->nterminal) {
           stp->nTknAct++;
-        } else if (ap->sp->index < lemp->nsymbol) {
+        } else if (ap->item->sp->index < lemp->nsymbol) {
           stp->nNtAct++;
         } else {
-          stp->iDflt = compute_action(lemp, ap);
+          stp->iDflt = compute_action(lemp, ap->item);
         }
       }
     }
