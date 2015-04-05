@@ -4,16 +4,15 @@
 #include <stdlib.h>
 
 static void grow_hash(unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table *hash);
-static void insert_hash_internal(void *obj, unsigned int (*hash_fn)(void const *, unsigned int),
-                                 struct hash_table *hash);
+static void insert_hash_internal(void *obj, unsigned int (*hash_fn)(void const *, unsigned int), void **hash, unsigned int size);
 
 void *
 lookup_hash(void const *key, void const *get_key_fn(void const *), int (*compare_fn)(void const *, void const *),
             unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table *hash) {
   unsigned int h, first;
-  void const *obj;
-  if (!hash)
-    return NULL;
+  void *obj = NULL;
+  if (!hash || !hash->hash)
+    return obj;
   first = h = hash_fn(key, hash->size);
   while ((obj = hash->hash[h]) != NULL) {
     if (!compare_fn(key, get_key_fn(obj)))
@@ -27,14 +26,14 @@ lookup_hash(void const *key, void const *get_key_fn(void const *), int (*compare
     hash->hash[h] = hash->hash[first];
     hash->hash[first] = tmp;
   }
-  return NULL;
+  return obj;
 }
 
 void
 insert_hash(void *obj, unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table *hash) {
-  if (hash->size - 1 <= hash->count * 2)
+  if (!hash->size || (hash->size - 1 <= hash->count * 2))
     grow_hash(hash_fn, hash);
-  insert_hash_internal(obj, hash_fn, hash);
+  insert_hash_internal(obj, hash_fn, hash->hash, hash->size);
   hash->count++;
 }
 
@@ -47,7 +46,7 @@ grow_hash(unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table
     void *obj = hash->hash[i];
     if (!obj)
       continue;
-    insert_hash_internal(obj, hash_fn, hash);
+    insert_hash_internal(obj, hash_fn, new_hash, new_size);
   }
   free(hash->hash);
   hash->hash = new_hash;
@@ -55,12 +54,12 @@ grow_hash(unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table
 }
 
 static void
-insert_hash_internal(void *obj, unsigned int (*hash_fn)(void const *, unsigned int), struct hash_table *hash) {
-  unsigned int h = hash_fn(obj, hash->size);
-  while (hash->hash[h]) {
+insert_hash_internal(void *obj, unsigned int (*hash_fn)(void const *, unsigned int), void **hash, unsigned int size) {
+  unsigned int h = hash_fn(obj, size);
+  while (hash[h]) {
     h++;
-    if (h >= hash->size)
+    if (h >= size)
       h = 0;
   }
-  hash->hash[h] = obj;
+  hash[h] = obj;
 }

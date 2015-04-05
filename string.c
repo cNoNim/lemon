@@ -9,11 +9,15 @@
 struct hash_table string_hash;
 
 static void const *get_key_string(void const *obj);
-static unsigned int hash_string(void const *obj, unsigned int size);
 
 int
 compare_string(void const *left, void const *right) {
     return strcmp(left, right);
+}
+
+unsigned int
+hash_string(void const *obj, unsigned int size) {
+    return strhash((char const *)obj) & (size - 1);
 }
 
 char const *
@@ -34,9 +38,4 @@ make_string(char const *key) {
 static void const *
 get_key_string(void const *obj) {
     return obj;
-}
-
-static unsigned int
-hash_string(void const *obj, unsigned int size) {
-    return strhash((char const *)obj) & (size - 1);
 }

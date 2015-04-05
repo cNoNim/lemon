@@ -34,7 +34,7 @@ array_of_symbol(unsigned int *size) {
 
 struct symbol *
 lookup_symbol(char const *key) {
-    return (struct symbol *)lookup_hash(key, get_key_symbol, compare_string, hash_symbol, &symbol_hash);
+    return (struct symbol *)lookup_hash(key, get_key_symbol, compare_string, hash_string, &symbol_hash);
 }
 
 struct symbol *

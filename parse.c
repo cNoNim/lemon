@@ -40,7 +40,7 @@ struct pstate {
   int tokenlineno;            // Linenumber at which current token starts
   int errorcnt;               // Number of errors so far
   char *tokenstart;           // Text of current token
-  struct lemon *lemp;           // Global state vector
+  struct lemon *lemp;         // Global state vector
   enum e_state state;         // The state of the parser
   struct symbol *fallback;    // The fallback token
   struct symbol *tkclass;     // Token class symbol
@@ -57,7 +57,6 @@ struct pstate {
   enum e_assoc declassoc;     // Assign this association to decl arguments
   int preccounter;            // Assign this precedence to decl arguments
   struct rule_list *rules;     // Pointer to first rule in the grammar
-  struct rule *lastrule;      // Pointer to the most recently parsed rule
 };
 
 // TODO: move
@@ -334,7 +333,6 @@ parseonetoken(struct pstate *psp) {
                                  1);
       if (rp == 0) {
         ErrorMsg(psp, psp->tokenlineno, "Can't allocate enough memory for this rule.");
-        psp->errorcnt++;
         psp->prevrule = 0;
       } else {
         int i;
@@ -359,7 +357,6 @@ parseonetoken(struct pstate *psp) {
     } else if (isalpha(x[0])) {
       if (psp->nrhs >= MAXRHS) {
         ErrorMsg(psp, psp->tokenlineno, "Too many symbols on RHS of rule beginning at \"%s\".", x);
-        psp->errorcnt++;
         psp->state = RESYNC_AFTER_RULE_ERROR;
       } else {
         psp->rhs[psp->nrhs] = make_symbol(x);
@@ -384,7 +381,6 @@ parseonetoken(struct pstate *psp) {
       msp->subsym[msp->nsubsym - 1] = make_symbol(&x[1]);
       if (islower(x[1]) || islower(msp->subsym[0]->name[0])) {
         ErrorMsg(psp, psp->tokenlineno, "Cannot form a compound containing a non-terminal");
-        psp->errorcnt++;
       }
     } else if (x[0] == '(' && psp->nrhs > 0) {
       psp->state = RHS_ALIAS_1;
@@ -480,7 +476,6 @@ parseonetoken(struct pstate *psp) {
         psp->state = WAITING_FOR_CLASS_ID;
       } else {
         ErrorMsg(psp, psp->tokenlineno, "Unknown declaration keyword: \"%%%s\".", x);
-        psp->errorcnt++;
         psp->state = RESYNC_AFTER_DECL_ERROR;
       }
     } else {
@@ -508,7 +503,6 @@ parseonetoken(struct pstate *psp) {
       struct symbol *sp = lookup_symbol(x);
       if ((sp) && (sp->datatype)) {
         ErrorMsg(psp, psp->tokenlineno, "Symbol %%type \"%s\" already defined", x);
-        psp->errorcnt++;
         psp->state = RESYNC_AFTER_DECL_ERROR;
       } else {
         if (!sp) {
@@ -528,7 +522,6 @@ parseonetoken(struct pstate *psp) {
       sp = make_symbol(x);
       if (sp->prec >= 0) {
         ErrorMsg(psp, psp->tokenlineno, "Symbol \"%s\" has already be given a precedence.", x);
-        psp->errorcnt++;
       } else {
         sp->prec = psp->preccounter;
         sp->assoc = psp->declassoc;
@@ -606,7 +599,6 @@ parseonetoken(struct pstate *psp) {
         psp->fallback = sp;
       } else if (sp->fallback) {
         ErrorMsg(psp, psp->tokenlineno, "More than one fallback assigned to token %s", x);
-        psp->errorcnt++;
       } else {
         sp->fallback = psp->fallback;
         psp->lemp->has_fallback = 1;
@@ -624,7 +616,6 @@ parseonetoken(struct pstate *psp) {
         psp->lemp->wildcard = sp;
       } else {
         ErrorMsg(psp, psp->tokenlineno, "Extra wildcard to token: %s", x);
-        psp->errorcnt++;
       }
     }
     break;
