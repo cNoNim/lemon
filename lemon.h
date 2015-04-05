@@ -1,14 +1,6 @@
 #ifndef _LEMON_STRUCT_H_
 #define _LEMON_STRUCT_H_
 
-/*
- * Principal data structures for the LEMON parser generator.
- */
-
-struct state;
-struct rule;
-struct symbol;
-
 /* The state vector for the entire parser generator is recorded as
  * follows.  (LEMON uses no global variables and makes little use of
  * static variables.  Fields in the following structure can be thought
@@ -16,10 +8,10 @@ struct symbol;
  */
 struct lemon {
   struct state **sorted;   // Table of states sorted by state number
-  struct rule *rule;       // List of all rules
+  struct rule_list *rules; // List of all rules
   int nstate;              // Number of states
   int nrule;               // Number of rules
-  int nsymbol;             // Number of terminal and nonterminal symbols
+  unsigned int nsymbol;    // Number of terminal and nonterminal symbols
   int nterminal;           // Number of terminal symbols
   struct symbol **symbols; // Sorted array of pointers to symbols
   int errorcnt;            // Number of errors
@@ -44,9 +36,7 @@ struct lemon {
   char *tokenprefix;       // A prefix added to token names in the .h file
   int nconflict;           // Number of parsing conflicts
   int tablesize;           // Size of the parse tables
-  int basisflag;           // Print only basis configurations
   int has_fallback;        // True if any %fallback is seen in the grammar
-  int nolinenosflag;       // True if #line statements should not be printed
   char *argv0;             // Name of the program
 };
 

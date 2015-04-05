@@ -4,6 +4,10 @@
 /*
  * Routines processing parser actions in the LEMON parser generator.
  */
+struct action_list {
+  struct action *item;
+  struct action_list *next;
+};
 
 enum action_type {
   SHIFT,
@@ -19,11 +23,6 @@ enum action_type {
 };
 
 /* Every shift or reduce operation is stored as one of the following */
-struct action_list {
-  struct action *item;
-  struct action_list *next;
-};
-
 struct action {
   struct symbol *sp; // The look-ahead symbol
   enum action_type type;

@@ -6,21 +6,22 @@
 #include "report.h"
 #include "set.h"
 #include "lemon.h"
-#include "table.h"
+#include "symbol.h"
+#include "state.h"
 
 #include <assert.h>
 #include <ctype.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* forward declaration */
+static int compare_symbol(void const *left, void const *right);
 static void handle_D_option(char *);
 static void handle_T_option(char *);
 static void usage();
 
-char * argv0;
+char *argv0;
 
 int nDefine = 0;     // Number of -D options on the command line
 char **azDefine = 0; // Name of the -D macros
@@ -31,74 +32,61 @@ char *user_templatename = NULL;
 int
 main(int argc, char **argv) {
   static bool rpflag = false;
-  static bool basisflag = false;
   static bool compress = false;
   static bool quiet = false;
   static bool statistics = false;
-  static bool nolinenosflag = false;
   static bool noResort = false;
   // TODO: remove this flag
   static bool mhflag = true;
 
-  int i;
+  unsigned int i;
   int exitcode;
   struct lemon lem;
 
   ARGBEGIN {
-    case 'D':
-      handle_D_option(ARGF());
-      break;
-    case 'T':
-      handle_T_option(ARGF());
-      break;
-    case 'b':
-      basisflag = true;
-      break;
-    case 'c':
-      compress = true;
-      break;
-    case 'g':
-      rpflag = true;
-      break;
-    case 'l':
-      nolinenosflag = true;
-      break;
-    case 'p':
-      showPrecedenceConflict = true;
-      break;
-    case 'q':
-      quiet = true;
-      break;
-    case 'r':
-      noResort = true;
-      break;
-    case 's':
-      statistics = true;
-      break;
-    case 'V':
-      lprintf(LINFO, "Lemon version 1.0");
-      exit(EXIT_SUCCESS);
-    default:
-    case 'h':
-    case '?':
-      usage();
-  } ARGEND;
+  case 'D':
+    handle_D_option(ARGF());
+    break;
+  case 'T':
+    handle_T_option(ARGF());
+    break;
+  case 'c':
+    compress = true;
+    break;
+  case 'g':
+    rpflag = true;
+    break;
+  case 'p':
+    showPrecedenceConflict = true;
+    break;
+  case 'q':
+    quiet = true;
+    break;
+  case 'r':
+    noResort = true;
+    break;
+  case 's':
+    statistics = true;
+    break;
+  case 'V':
+    lprintf(LINFO, "Lemon version 1.0");
+    exit(EXIT_SUCCESS);
+  default:
+  case 'h':
+  case '?':
+    usage();
+  }
+  ARGEND;
   if (argc != 1) {
     lprintf(LFATAL, "Exactly one filename argument is required.");
   }
   memset(&lem, 0, sizeof(lem));
-  lem.errorcnt = 0;
 
   /* Initialize the machine */
-  Strsafe_init();
-  Symbol_init();
-  State_init();
   lem.argv0 = argv0;
   lem.filename = argv[0];
-  lem.basisflag = basisflag;
-  lem.nolinenosflag = nolinenosflag;
-  Symbol_new("$");
-  lem.errsym = Symbol_new("error");
+  make_symbol("$");
+  lem.errsym = make_symbol("error");
   lem.errsym->useCnt = 0;
 
   /* Parse the input file */
@@ -110,12 +98,11 @@ main(int argc, char **argv) {
   }
 
   /* Count and index the symbols of the grammar */
-  Symbol_new("{default}");
-  lem.nsymbol = Symbol_count();
-  lem.symbols = Symbol_arrayof();
+  make_symbol("{default}");
+  lem.symbols = array_of_symbol(&lem.nsymbol);
   for (i = 0; i < lem.nsymbol; i++)
     lem.symbols[i]->index = i;
-  qsort(lem.symbols, (size_t)lem.nsymbol, sizeof(struct symbol *), Symbolcmpp);
+  qsort(lem.symbols, (size_t)lem.nsymbol, sizeof(struct symbol *), compare_symbol);
   for (i = 0; i < lem.nsymbol; i++)
     lem.symbols[i]->index = i;
   while (lem.symbols[i - 1]->type == MULTITERMINAL) {
@@ -147,7 +134,7 @@ main(int argc, char **argv) {
      */
     lem.nstate = 0;
     FindStates(&lem);
-    lem.sorted = State_arrayof();
+    lem.sorted = array_of_state(NULL);
 
     /* Tie up loose ends on the propagation links */
     FindLinks(&lem);
@@ -187,8 +174,7 @@ main(int argc, char **argv) {
     lprintf(LINFO,
             "Parser statistics: %d terminals, %d nonterminals, %d rules\n"
             "\t%d states, %d parser table entries, %d conflicts\n",
-            lem.nterminal, lem.nsymbol - lem.nterminal, lem.nrule, lem.nstate,
-            lem.tablesize, lem.nconflict);
+            lem.nterminal, lem.nsymbol - lem.nterminal, lem.nrule, lem.nstate, lem.tablesize, lem.nconflict);
   }
   if (lem.nconflict > 0) {
     lprintf(LERROR, "%d parsing conflicts.\n", lem.nconflict);
@@ -197,6 +183,29 @@ main(int argc, char **argv) {
   /* return 0 on success, 1 on failure. */
   exitcode = ((lem.errorcnt > 0) || (lem.nconflict > 0)) ? 1 : 0;
   return (exitcode);
+}
+
+/* Compare two symbols for sorting purposes.  Return negative,
+ * zero, or positive if a is less then, equal to, or greater
+ * than b.
+ *
+ * Symbols that begin with upper case letters (terminals or tokens)
+ * must sort before symbols that begin with lower case letters
+ * (non-terminals).  And MULTITERMINAL symbols (created using the
+ * %token_class directive) must sort at the very end. Other than
+ * that, the order does not matter.
+ *
+ * We find experimentally that leaving the symbols in their original
+ * order (the order they appeared in the grammar file) gives the
+ * smallest parser tables in SQLite.
+ */
+static int
+compare_symbol(void const *left, void const *right) {
+  const struct symbol *a = *(const struct symbol **)left;
+  const struct symbol *b = *(const struct symbol **)right;
+  int i1 = a->type == MULTITERMINAL ? 3 : a->name[0] > 'Z' ? 2 : 1;
+  int i2 = b->type == MULTITERMINAL ? 3 : b->name[0] > 'Z' ? 2 : 1;
+  return i1 == i2 ? a->index - b->index : i1 - i2;
 }
 
 /* This routine is called with the argument to each -D command-line option.
@@ -224,17 +233,14 @@ handle_T_option(char *z) {
   strcpy(user_templatename, z);
 }
 
-
 static void
 usage() {
   fprintf(stderr,
           "usage: %s -h\n"
           "usage: %s -V\n"
           "usage: %s [-bcglpqrs] [-D define] [-T template] grammar\n"
-          "\t-b\tPrint only the basis in report.\n"
           "\t-c\tDon't compress the action table.\n"
           "\t-g\tPrint grammar without actions.\n"
-          "\t-l\tDo not print #line statements.\n"
           "\t-p\tShow conflicts resolved by precedence rules\n"
           "\t-q\t(Quiet) Don't print the report file.\n"
           "\t-r\tDo not sort or renumber states\n"
@@ -242,6 +248,7 @@ usage() {
           "\t-T\tSpecify a template file.\n"
           "\t-D\tDefine an %%ifdef macro.\n"
           "\t-h\tPrint usage infirmation.\n"
-          "\t-V\tPrint the version number.\n", argv0, argv0, argv0);
+          "\t-V\tPrint the version number.\n",
+          argv0, argv0, argv0);
   exit(EXIT_SUCCESS);
 }

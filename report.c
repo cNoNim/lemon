@@ -1,11 +1,14 @@
 #include "action.h"
 #include "acttab.h"
-#include "configlist.h"
+#include "config.h"
 #include "error.h"
 #include "parse.h"
 #include "set.h"
 #include "lemon.h"
-#include "table.h"
+#include "rule.h"
+#include "state.h"
+#include "string.h"
+#include "symbol.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -76,7 +79,7 @@ file_open(struct lemon *lemp, const char *suffix, const char *mode) {
  */
 void
 Reprint(struct lemon *lemp) {
-  struct rule *rp;
+  struct rule_list *rp;
   struct symbol *sp;
   int i, j, maxlen, len, ncolumns, skip;
   printf("// Reprint of input file \"%s\".\n// Symbols:\n", lemp->filename);
@@ -100,11 +103,11 @@ Reprint(struct lemon *lemp) {
     }
     printf("\n");
   }
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    printf("%s", rp->lhs->name);
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    printf("%s", rp->item->lhs->name);
     printf(" ::=");
-    for (i = 0; i < rp->nrhs; i++) {
-      sp = rp->rhs[i];
+    for (i = 0; i < rp->item->nrhs; i++) {
+      sp = rp->item->rhs[i];
       if (sp->type == MULTITERMINAL) {
         printf(" %s", sp->subsym[0]->name);
         for (j = 1; j < sp->nsubsym; j++) {
@@ -115,8 +118,8 @@ Reprint(struct lemon *lemp) {
       }
     }
     printf(".");
-    if (rp->precsym)
-      printf(" [%s]", rp->precsym->name);
+    if (rp->item->precsym)
+      printf(" [%s]", rp->item->precsym->name);
     printf("\n");
   }
 }
@@ -126,10 +129,10 @@ ConfigPrint(FILE *fp, struct config *cfp) {
   struct rule *rp;
   struct symbol *sp;
   int i, j;
-  rp = cfp->rp;
+  rp = cfp->rule;
   fprintf(fp, "%s ::=", rp->lhs->name);
   for (i = 0; i <= rp->nrhs; i++) {
-    if (i == cfp->dot)
+    if (i == cfp->position)
       fprintf(fp, " *");
     if (i == rp->nrhs)
       break;
@@ -197,7 +200,7 @@ void
 ReportOutput(struct lemon *lemp) {
   int i;
   struct state *stp;
-  struct config *cfp;
+  struct config_list *cfp;
   struct action_list *ap;
   FILE *fp;
 
@@ -207,24 +210,18 @@ ReportOutput(struct lemon *lemp) {
   for (i = 0; i < lemp->nstate; i++) {
     stp = lemp->sorted[i];
     fprintf(fp, "State %d:\n", stp->statenum);
-    if (lemp->basisflag)
-      cfp = stp->bp;
-    else
-      cfp = stp->cfp;
+    cfp = stp->configs;
     while (cfp) {
       char buf[20];
-      if (cfp->dot == cfp->rp->nrhs) {
-        sprintf(buf, "(%d)", cfp->rp->index);
+      if (cfp->item->position == cfp->item->rule->nrhs) {
+        sprintf(buf, "(%d)", cfp->item->rule->index);
         fprintf(fp, "    %5s ", buf);
       } else {
         fprintf(fp, "          ");
       }
-      ConfigPrint(fp, cfp);
+      ConfigPrint(fp, cfp->item);
       fprintf(fp, "\n");
-      if (lemp->basisflag)
-        cfp = cfp->bp;
-      else
-        cfp = cfp->next;
+      cfp = cfp->next;
     }
     fprintf(fp, "\n");
     for (ap = stp->actions; ap; ap = ap->next) {
@@ -451,10 +448,8 @@ tplt_print(FILE *out, struct lemon *lemp, char *str, int *lineno) {
     putc('\n', out);
     (*lineno)++;
   }
-  if (!lemp->nolinenosflag) {
-    (*lineno)++;
-    tplt_linedir(out, *lineno, lemp->outname);
-  }
+  (*lineno)++;
+  tplt_linedir(out, *lineno, lemp->outname);
   return;
 }
 
@@ -475,10 +470,8 @@ emit_destructor_code(FILE *out, struct symbol *sp, struct lemon *lemp, int *line
     cp = sp->destructor;
     fprintf(out, "{\n");
     (*lineno)++;
-    if (!lemp->nolinenosflag) {
-      (*lineno)++;
-      tplt_linedir(out, sp->destLineno, lemp->filename);
-    }
+    (*lineno)++;
+    tplt_linedir(out, sp->destLineno, lemp->filename);
   } else if (lemp->vardest) {
     cp = lemp->vardest;
     if (cp == 0)
@@ -500,10 +493,8 @@ emit_destructor_code(FILE *out, struct symbol *sp, struct lemon *lemp, int *line
   }
   fprintf(out, "\n");
   (*lineno)++;
-  if (!lemp->nolinenosflag) {
-    (*lineno)++;
-    tplt_linedir(out, *lineno, lemp->outname);
-  }
+  (*lineno)++;
+  tplt_linedir(out, *lineno, lemp->outname);
   fprintf(out, "}\n");
   (*lineno)++;
   return;
@@ -663,7 +654,7 @@ translate_code(struct lemon *lemp, struct rule *rp) {
   }
   if (rp->code) {
     cp = append_str(0, 0, 0, 0);
-    rp->code = Strsafe(cp ? cp : "");
+    rp->code = make_string(cp ? cp : "");
   }
 }
 
@@ -676,10 +667,8 @@ emit_code(FILE *out, struct rule *rp, struct lemon *lemp, int *lineno) {
 
   /* Generate code to do the reduce action */
   if (rp->code) {
-    if (!lemp->nolinenosflag) {
-      (*lineno)++;
-      tplt_linedir(out, rp->line, lemp->filename);
-    }
+    (*lineno)++;
+    tplt_linedir(out, rp->line, lemp->filename);
     fprintf(out, "{%s", rp->code);
     for (cp = rp->code; *cp; cp++) {
       if (*cp == '\n')
@@ -687,10 +676,8 @@ emit_code(FILE *out, struct rule *rp, struct lemon *lemp, int *lineno) {
     }
     fprintf(out, "}\n");
     (*lineno)++;
-    if (!lemp->nolinenosflag) {
-      (*lineno)++;
-      tplt_linedir(out, *lineno, lemp->outname);
-    }
+    (*lineno)++;
+    tplt_linedir(out, *lineno, lemp->outname);
   }
 
   return;
@@ -906,7 +893,7 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
   int lineno;
   struct state *stp;
   struct action_list *ap;
-  struct rule *rp;
+  struct rule_list *rp;
   struct acttab *pActtab;
   int i, j, n;
   const char *name;
@@ -1270,10 +1257,10 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
    * rule in the rule set of the grammar.  This information is used
    * when tracing REDUCE actions.
    */
-  for (i = 0, rp = lemp->rule; rp; rp = rp->next, i++) {
-    assert(rp->index == i);
+  for (i = 0, rp = lemp->rules; rp; rp = rp->next, i++) {
+    assert(rp->item->index == i);
     fprintf(out, " /* %3d */ \"", i);
-    writeRuleText(out, rp);
+    writeRuleText(out, rp->item);
     fprintf(out, "\",\n");
     lineno++;
   }
@@ -1360,53 +1347,53 @@ ReportTable(struct lemon *lemp, int mhflag // Output in makeheaders format if tr
    * Note: This code depends on the fact that rules are number
    * sequentually beginning with 0.
    */
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    fprintf(out, "  { %d, %d },\n", rp->lhs->index, rp->nrhs);
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    fprintf(out, "  { %d, %d },\n", rp->item->lhs->index, rp->item->nrhs);
     lineno++;
   }
   tplt_xfer(lemp->name, in, out, &lineno);
 
   /* Generate code which execution during each REDUCE action */
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    translate_code(lemp, rp);
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    translate_code(lemp, rp->item);
   }
   /* First output rules other than the default: rule */
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    struct rule *rp2; // Other rules with the same action
-    if (rp->code == 0)
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    struct rule_list *rp2; // Other rules with the same action
+    if (rp->item->code == 0)
       continue;
-    if (rp->code[0] == '\n' && rp->code[1] == 0)
+    if (rp->item->code[0] == '\n' && rp->item->code[1] == 0)
       continue; // Will be default:
-    fprintf(out, "      case %d: /* ", rp->index);
-    writeRuleText(out, rp);
+    fprintf(out, "      case %d: /* ", rp->item->index);
+    writeRuleText(out, rp->item);
     fprintf(out, " */\n");
     lineno++;
     for (rp2 = rp->next; rp2; rp2 = rp2->next) {
-      if (rp2->code == rp->code) {
-        fprintf(out, "      case %d: /* ", rp2->index);
-        writeRuleText(out, rp2);
-        fprintf(out, " */ yytestcase(yyruleno==%d);\n", rp2->index);
+      if (rp2->item->code == rp->item->code) {
+        fprintf(out, "      case %d: /* ", rp2->item->index);
+        writeRuleText(out, rp2->item);
+        fprintf(out, " */ yytestcase(yyruleno==%d);\n", rp2->item->index);
         lineno++;
-        rp2->code = 0;
+        rp2->item->code = 0;
       }
     }
-    emit_code(out, rp, lemp, &lineno);
+    emit_code(out, rp->item, lemp, &lineno);
     fprintf(out, "        break;\n");
     lineno++;
-    rp->code = 0;
+    rp->item->code = 0;
   }
   /* Finally, output the default: rule.  We choose as the default: all
    * empty actions.
    */
   fprintf(out, "      default:\n");
   lineno++;
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    if (rp->code == 0)
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    if (rp->item->code == 0)
       continue;
-    assert(rp->code[0] == '\n' && rp->code[1] == 0);
-    fprintf(out, "      /* (%d) ", rp->index);
-    writeRuleText(out, rp);
-    fprintf(out, " */ yytestcase(yyruleno==%d);\n", rp->index);
+    assert(rp->item->code[0] == '\n' && rp->item->code[1] == 0);
+    fprintf(out, "      /* (%d) ", rp->item->index);
+    writeRuleText(out, rp->item);
+    fprintf(out, " */ yytestcase(yyruleno==%d);\n", rp->item->index);
     lineno++;
   }
   fprintf(out, "        break;\n");
@@ -1533,7 +1520,7 @@ CompressTables(struct lemon *lemp) {
         break;
     }
     assert(ap);
-    ap->item->sp = Symbol_new("{default}");
+    ap->item->sp = make_symbol("{default}");
     for (ap = ap->next; ap; ap = ap->next) {
       if (ap->item->type == REDUCE && ap->item->x.rp == rbest)
         ap->item->type = NOT_USED;

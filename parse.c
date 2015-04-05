@@ -1,7 +1,9 @@
 #include "error.h"
 #include "parse.h"
 #include "lemon.h"
-#include "table.h"
+#include "rule.h"
+#include "string.h"
+#include "symbol.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -38,7 +40,7 @@ struct pstate {
   int tokenlineno;            // Linenumber at which current token starts
   int errorcnt;               // Number of errors so far
   char *tokenstart;           // Text of current token
-  struct lemon *gp;           // Global state vector
+  struct lemon *lemp;           // Global state vector
   enum e_state state;         // The state of the parser
   struct symbol *fallback;    // The fallback token
   struct symbol *tkclass;     // Token class symbol
@@ -54,7 +56,7 @@ struct pstate {
   int *decllinenoslot;        // Where to write declaration line number
   enum e_assoc declassoc;     // Assign this association to decl arguments
   int preccounter;            // Assign this precedence to decl arguments
-  struct rule *firstrule;     // Pointer to first rule in the grammar
+  struct rule_list *rules;     // Pointer to first rule in the grammar
   struct rule *lastrule;      // Pointer to the most recently parsed rule
 };
 
@@ -72,7 +74,7 @@ static void preprocess_input(char *);
  * the appropriate data structures in the global state vector "gp".
  */
 void
-Parse(struct lemon *gp) {
+Parse(struct lemon *lemp) {
   struct pstate ps;
   FILE *fp;
   char *filebuf;
@@ -83,8 +85,8 @@ Parse(struct lemon *gp) {
   int startline = 0;
 
   memset(&ps, '\0', sizeof(ps));
-  ps.gp = gp;
-  ps.filename = gp->filename;
+  ps.lemp = lemp;
+  ps.filename = lemp->filename;
   ps.errorcnt = 0;
   ps.state = INITIALIZE;
 
@@ -92,7 +94,7 @@ Parse(struct lemon *gp) {
   fp = fopen(ps.filename, "rb");
   if (fp == 0) {
     ErrorMsg(ps.filename, 0, "Can't open this file for reading.");
-    gp->errorcnt++;
+    lemp->errorcnt++;
     return;
   }
   fseek(fp, 0, 2);
@@ -101,14 +103,14 @@ Parse(struct lemon *gp) {
   filebuf = (char *)malloc((size_t)(filesize + 1));
   if (filesize > 100000000 || filebuf == 0) {
     ErrorMsg(ps.filename, 0, "Input file too large.");
-    gp->errorcnt++;
+    lemp->errorcnt++;
     fclose(fp);
     return;
   }
   if (fread(filebuf, 1, (size_t)filesize, fp) != filesize) {
     ErrorMsg(ps.filename, 0, "Can't read in all %d bytes of this file.", filesize);
     free(filebuf);
-    gp->errorcnt++;
+    lemp->errorcnt++;
     fclose(fp);
     return;
   }
@@ -231,27 +233,27 @@ Parse(struct lemon *gp) {
     cp = nextcp;
   }
   free(filebuf); // Release the buffer after parsing
-  gp->rule = ps.firstrule;
-  gp->errorcnt = ps.errorcnt;
+  lemp->rules = ps.rules;
+  lemp->errorcnt = ps.errorcnt;
 }
 
 /* Parse a single token */
 static void
 parseonetoken(struct pstate *psp) {
   const char *x;
-  x = Strsafe(psp->tokenstart); // Save the token permanently
+  x = make_string(psp->tokenstart); // Save the token permanently
   switch (psp->state) {
   case INITIALIZE:
     psp->prevrule = 0;
     psp->preccounter = 0;
-    psp->firstrule = psp->lastrule = 0;
-    psp->gp->nrule = 0;
+    psp->rules = NULL;
+    psp->lemp->nrule = 0;
   /* Fall thru to next case */
   case WAITING_FOR_DECL_OR_RULE:
     if (x[0] == '%') {
       psp->state = WAITING_FOR_DECL_KEYWORD;
     } else if (islower(x[0])) {
-      psp->lhs = Symbol_new(x);
+      psp->lhs = make_symbol(x);
       psp->nrhs = 0;
       psp->lhsalias = 0;
       psp->state = WAITING_FOR_ARROW;
@@ -290,7 +292,7 @@ parseonetoken(struct pstate *psp) {
                         to follow the previous rule.");
       psp->errorcnt++;
     } else {
-      psp->prevrule->precsym = Symbol_new(x);
+      psp->prevrule->precsym = make_symbol(x);
     }
     psp->state = PRECEDENCE_MARK_2;
     break;
@@ -364,16 +366,9 @@ parseonetoken(struct pstate *psp) {
         rp->nrhs = psp->nrhs;
         rp->code = 0;
         rp->precsym = 0;
-        rp->index = psp->gp->nrule++;
-        rp->nextlhs = rp->lhs->rule;
-        rp->lhs->rule = rp;
-        rp->next = 0;
-        if (psp->firstrule == 0) {
-          psp->firstrule = psp->lastrule = rp;
-        } else {
-          psp->lastrule->next = rp;
-          psp->lastrule = rp;
-        }
+        rp->index = psp->lemp->nrule++;
+        rp->lhs->rules = rule_list_insert(rp, &rp->lhs->rules);
+        psp->rules = rule_list_insert(rp, &psp->rules);
         psp->prevrule = rp;
       }
       psp->state = WAITING_FOR_DECL_OR_RULE;
@@ -383,7 +378,7 @@ parseonetoken(struct pstate *psp) {
         psp->errorcnt++;
         psp->state = RESYNC_AFTER_RULE_ERROR;
       } else {
-        psp->rhs[psp->nrhs] = Symbol_new(x);
+        psp->rhs[psp->nrhs] = make_symbol(x);
         psp->alias[psp->nrhs] = 0;
         psp->nrhs++;
       }
@@ -402,7 +397,7 @@ parseonetoken(struct pstate *psp) {
       }
       msp->nsubsym++;
       msp->subsym = (struct symbol **)realloc(msp->subsym, sizeof(struct symbol *) * msp->nsubsym);
-      msp->subsym[msp->nsubsym - 1] = Symbol_new(&x[1]);
+      msp->subsym[msp->nsubsym - 1] = make_symbol(&x[1]);
       if (islower(x[1]) || islower(msp->subsym[0]->name[0])) {
         ErrorMsg(psp->filename, psp->tokenlineno, "Cannot form a compound containing a non-terminal");
         psp->errorcnt++;
@@ -443,41 +438,41 @@ parseonetoken(struct pstate *psp) {
       psp->insertLineMacro = 1;
       psp->state = WAITING_FOR_DECL_ARG;
       if (strcmp(x, "name") == 0) {
-        psp->declargslot = &(psp->gp->name);
+        psp->declargslot = &(psp->lemp->name);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "include") == 0) {
-        psp->declargslot = &(psp->gp->include);
+        psp->declargslot = &(psp->lemp->include);
       } else if (strcmp(x, "code") == 0) {
-        psp->declargslot = &(psp->gp->extracode);
+        psp->declargslot = &(psp->lemp->extracode);
       } else if (strcmp(x, "token_destructor") == 0) {
-        psp->declargslot = &psp->gp->tokendest;
+        psp->declargslot = &psp->lemp->tokendest;
       } else if (strcmp(x, "default_destructor") == 0) {
-        psp->declargslot = &psp->gp->vardest;
+        psp->declargslot = &psp->lemp->vardest;
       } else if (strcmp(x, "token_prefix") == 0) {
-        psp->declargslot = &psp->gp->tokenprefix;
+        psp->declargslot = &psp->lemp->tokenprefix;
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "syntax_error") == 0) {
-        psp->declargslot = &(psp->gp->error);
+        psp->declargslot = &(psp->lemp->error);
       } else if (strcmp(x, "parse_accept") == 0) {
-        psp->declargslot = &(psp->gp->accept);
+        psp->declargslot = &(psp->lemp->accept);
       } else if (strcmp(x, "parse_failure") == 0) {
-        psp->declargslot = &(psp->gp->failure);
+        psp->declargslot = &(psp->lemp->failure);
       } else if (strcmp(x, "stack_overflow") == 0) {
-        psp->declargslot = &(psp->gp->overflow);
+        psp->declargslot = &(psp->lemp->overflow);
       } else if (strcmp(x, "extra_argument") == 0) {
-        psp->declargslot = &(psp->gp->arg);
+        psp->declargslot = &(psp->lemp->arg);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "token_type") == 0) {
-        psp->declargslot = &(psp->gp->tokentype);
+        psp->declargslot = &(psp->lemp->tokentype);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "default_type") == 0) {
-        psp->declargslot = &(psp->gp->vartype);
+        psp->declargslot = &(psp->lemp->vartype);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "stack_size") == 0) {
-        psp->declargslot = &(psp->gp->stacksize);
+        psp->declargslot = &(psp->lemp->stacksize);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "start_symbol") == 0) {
-        psp->declargslot = &(psp->gp->start);
+        psp->declargslot = &(psp->lemp->start);
         psp->insertLineMacro = 0;
       } else if (strcmp(x, "left") == 0) {
         psp->preccounter++;
@@ -519,7 +514,7 @@ parseonetoken(struct pstate *psp) {
       psp->errorcnt++;
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
-      struct symbol *sp = Symbol_new(x);
+      struct symbol *sp = make_symbol(x);
       psp->declargslot = &sp->destructor;
       psp->decllinenoslot = &sp->destLineno;
       psp->insertLineMacro = 1;
@@ -532,14 +527,14 @@ parseonetoken(struct pstate *psp) {
       psp->errorcnt++;
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
-      struct symbol *sp = Symbol_find(x);
+      struct symbol *sp = lookup_symbol(x);
       if ((sp) && (sp->datatype)) {
         ErrorMsg(psp->filename, psp->tokenlineno, "Symbol %%type \"%s\" already defined", x);
         psp->errorcnt++;
         psp->state = RESYNC_AFTER_DECL_ERROR;
       } else {
         if (!sp) {
-          sp = Symbol_new(x);
+          sp = make_symbol(x);
         }
         psp->declargslot = &sp->datatype;
         psp->insertLineMacro = 0;
@@ -552,7 +547,7 @@ parseonetoken(struct pstate *psp) {
       psp->state = WAITING_FOR_DECL_OR_RULE;
     } else if (isupper(x[0])) {
       struct symbol *sp;
-      sp = Symbol_new(x);
+      sp = make_symbol(x);
       if (sp->prec >= 0) {
         ErrorMsg(psp->filename, psp->tokenlineno, "Symbol \"%s\" has already be given a precedence.", x);
         psp->errorcnt++;
@@ -583,8 +578,7 @@ parseonetoken(struct pstate *psp) {
       }
       nOld = strlen(zOld);
       n = nOld + nNew + 20;
-      addLineMacro =
-          !psp->gp->nolinenosflag && psp->insertLineMacro && (psp->decllinenoslot == 0 || psp->decllinenoslot[0] != 0);
+      addLineMacro = psp->insertLineMacro && (psp->decllinenoslot == 0 || psp->decllinenoslot[0] != 0);
       if (addLineMacro) {
         for (z = psp->filename, nBack = 0; *z; z++) {
           if (*z == '\\')
@@ -632,7 +626,7 @@ parseonetoken(struct pstate *psp) {
       ErrorMsg(psp->filename, psp->tokenlineno, "%%fallback argument \"%s\" should be a token", x);
       psp->errorcnt++;
     } else {
-      struct symbol *sp = Symbol_new(x);
+      struct symbol *sp = make_symbol(x);
       if (psp->fallback == 0) {
         psp->fallback = sp;
       } else if (sp->fallback) {
@@ -640,7 +634,7 @@ parseonetoken(struct pstate *psp) {
         psp->errorcnt++;
       } else {
         sp->fallback = psp->fallback;
-        psp->gp->has_fallback = 1;
+        psp->lemp->has_fallback = 1;
       }
     }
     break;
@@ -651,9 +645,9 @@ parseonetoken(struct pstate *psp) {
       ErrorMsg(psp->filename, psp->tokenlineno, "%%wildcard argument \"%s\" should be a token", x);
       psp->errorcnt++;
     } else {
-      struct symbol *sp = Symbol_new(x);
-      if (psp->gp->wildcard == 0) {
-        psp->gp->wildcard = sp;
+      struct symbol *sp = make_symbol(x);
+      if (psp->lemp->wildcard == 0) {
+        psp->lemp->wildcard = sp;
       } else {
         ErrorMsg(psp->filename, psp->tokenlineno, "Extra wildcard to token: %s", x);
         psp->errorcnt++;
@@ -665,12 +659,12 @@ parseonetoken(struct pstate *psp) {
       ErrorMsg(psp->filename, psp->tokenlineno, "%%token_class must be followed by an identifier: ", x);
       psp->errorcnt++;
       psp->state = RESYNC_AFTER_DECL_ERROR;
-    } else if (Symbol_find(x)) {
+    } else if (lookup_symbol(x)) {
       ErrorMsg(psp->filename, psp->tokenlineno, "Symbol \"%s\" already used", x);
       psp->errorcnt++;
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
-      psp->tkclass = Symbol_new(x);
+      psp->tkclass = make_symbol(x);
       psp->tkclass->type = MULTITERMINAL;
       psp->state = WAITING_FOR_CLASS_TOKEN;
     }
@@ -684,7 +678,7 @@ parseonetoken(struct pstate *psp) {
       msp->subsym = (struct symbol **)realloc(msp->subsym, sizeof(struct symbol *) * msp->nsubsym);
       if (!isupper(x[0]))
         x++;
-      msp->subsym[msp->nsubsym - 1] = Symbol_new(x);
+      msp->subsym[msp->nsubsym - 1] = make_symbol(x);
     } else {
       ErrorMsg(psp->filename, psp->tokenlineno, "%%token_class argument \"%s\" should be a token", x);
       psp->errorcnt++;

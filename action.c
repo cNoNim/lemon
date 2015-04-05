@@ -1,7 +1,8 @@
 #include "action.h"
 #include "error.h"
 #include "msort.h"
-#include "table.h"
+#include "rule.h"
+#include "symbol.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +13,7 @@ static int action_list_compare(void const *left, void const *right);
 
 struct action_list *
 action_list_insert(struct action *action, struct action_list **list) {
-  struct action_list *new_list = malloc(sizeof(struct action_list));
+  struct action_list *new_list = (struct action_list *)malloc(sizeof(struct action_list));
   new_list->item = action;
   new_list->next = *list;
   *list = new_list;

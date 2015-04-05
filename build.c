@@ -1,27 +1,29 @@
 #include "action.h"
-#include "configlist.h"
+#include "config.h"
 #include "error.h"
-#include "plink.h"
-#include "set.h"
 #include "lemon.h"
-#include "table.h"
+#include "rule.h"
+#include "set.h"
+#include "state.h"
+#include "symbol.h"
 
 #include <assert.h>
 #include <stdlib.h>
 
 /* forward declarations */
 static void buildshifts(struct lemon *, struct state *);
-static struct state *getstate(struct lemon *);
+static struct state *get_state(struct lemon *, struct config_list **basis);
 static int resolve_conflict(struct action *, struct action *);
 static int same_symbol(struct symbol *, struct symbol *);
+static void check_config_list(struct lemon *lemp, struct config_list *list);
 
 /* Compute the reduce actions, and resolve conflicts. */
 void
 FindActions(struct lemon *lemp) {
   int i, j;
-  struct config *cfp;
+  struct config_list *cfp;
   struct symbol *sp;
-  struct rule *rp;
+  struct rule_list *rp;
 
   /* Add all of the reduce actions
    * A reduce action is added for each element of the followset of
@@ -30,13 +32,13 @@ FindActions(struct lemon *lemp) {
   for (i = 0; i < lemp->nstate; i++) { /* Loop over all states */
     struct state *stp;
     stp = lemp->sorted[i];
-    for (cfp = stp->cfp; cfp; cfp = cfp->next) { /* Loop over all configurations */
-      if (cfp->rp->nrhs == cfp->dot) {           /* Is dot at extreme right? */
+    for (cfp = stp->configs; cfp; cfp = cfp->next) { /* Loop over all configurations */
+      if (cfp->item->rule->nrhs == cfp->item->position) {   /* Is dot at extreme right? */
         for (j = 0; j < lemp->nterminal; j++) {
-          if (SetFind(cfp->fws, j)) {
+          if (SetFind(cfp->item->fws, j)) {
             /* Add a reduce action to the state "stp" which will reduce by the
              * rule "cfp->rp" if the lookahead symbol is "lemp->symbols[j]" */
-            action_list_insert(make_action(lemp->symbols[j], REDUCE, cfp->rp), &stp->actions);
+            action_list_insert(make_action(lemp->symbols[j], REDUCE, cfp->item->rule), &stp->actions);
             // TODO: check rewrite Action_add(&stp->ap, REDUCE, lemp->symbols[j], (char *)cfp->rp);
           }
         }
@@ -46,11 +48,11 @@ FindActions(struct lemon *lemp) {
 
   /* Add the accepting token */
   if (lemp->start) {
-    sp = Symbol_find(lemp->start);
+    sp = lookup_symbol(lemp->start);
     if (sp == 0)
-      sp = lemp->rule->lhs;
+      sp = lemp->rules->item->lhs;
   } else {
-    sp = lemp->rule->lhs;
+    sp = lemp->rules->item->lhs;
   }
   /* Add to the first state (which is always the starting state of the
    * finite state machine) an action to ACCEPT if the lookahead is the
@@ -76,8 +78,8 @@ FindActions(struct lemon *lemp) {
   }
 
   /* Report an error for each rule that can never be reduced. */
-  for (rp = lemp->rule; rp; rp = rp->next)
-    rp->canReduce = false;
+  for (rp = lemp->rules; rp; rp = rp->next)
+    rp->item->canReduce = false;
   for (i = 0; i < lemp->nstate; i++) {
     struct action_list *ap;
     for (ap = lemp->sorted[i]->actions; ap; ap = ap->next) {
@@ -85,10 +87,10 @@ FindActions(struct lemon *lemp) {
         ap->item->x.rp->canReduce = true;
     }
   }
-  for (rp = lemp->rule; rp; rp = rp->next) {
-    if (rp->canReduce)
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    if (rp->item->canReduce)
       continue;
-    ErrorMsg(lemp->filename, rp->ruleline, "This rule can not be reduced.\n");
+    ErrorMsg(lemp->filename, rp->item->ruleline, "This rule can not be reduced.\n");
     lemp->errorcnt++;
   }
 }
@@ -101,7 +103,7 @@ FindActions(struct lemon *lemp) {
 void
 FindFirstSets(struct lemon *lemp) {
   int i, j;
-  struct rule *rp;
+  struct rule_list *rp;
   int progress;
 
   for (i = 0; i < lemp->nsymbol; i++) {
@@ -114,17 +116,17 @@ FindFirstSets(struct lemon *lemp) {
   /* First compute all lambdas */
   do {
     progress = 0;
-    for (rp = lemp->rule; rp; rp = rp->next) {
-      if (rp->lhs->lambda)
+    for (rp = lemp->rules; rp; rp = rp->next) {
+      if (rp->item->lhs->lambda)
         continue;
-      for (i = 0; i < rp->nrhs; i++) {
-        struct symbol *sp = rp->rhs[i];
+      for (i = 0; i < rp->item->nrhs; i++) {
+        struct symbol *sp = rp->item->rhs[i];
         assert(sp->type == NONTERMINAL || sp->lambda == false);
         if (sp->lambda == false)
           break;
       }
-      if (i == rp->nrhs) {
-        rp->lhs->lambda = true;
+      if (i == rp->item->nrhs) {
+        rp->item->lhs->lambda = true;
         progress = 1;
       }
     }
@@ -134,10 +136,10 @@ FindFirstSets(struct lemon *lemp) {
   do {
     struct symbol *s1, *s2;
     progress = 0;
-    for (rp = lemp->rule; rp; rp = rp->next) {
-      s1 = rp->lhs;
-      for (i = 0; i < rp->nrhs; i++) {
-        s2 = rp->rhs[i];
+    for (rp = lemp->rules; rp; rp = rp->next) {
+      s1 = rp->item->lhs;
+      for (i = 0; i < rp->item->nrhs; i++) {
+        s2 = rp->item->rhs[i];
         if (s2->type == TERMINAL) {
           progress += SetAdd(s1->firstset, s2->index);
           break;
@@ -168,31 +170,31 @@ FindFirstSets(struct lemon *lemp) {
 void
 FindFollowSets(struct lemon *lemp) {
   int i;
-  struct config *cfp;
-  struct plink *plp;
+  struct config_list *cfp;
+  struct config_list *plp;
   int progress;
   int change;
 
   for (i = 0; i < lemp->nstate; i++) {
-    for (cfp = lemp->sorted[i]->cfp; cfp; cfp = cfp->next) {
-      cfp->status = INCOMPLETE;
+    for (cfp = lemp->sorted[i]->configs; cfp; cfp = cfp->next) {
+      cfp->item->status = INCOMPLETE;
     }
   }
 
   do {
     progress = 0;
     for (i = 0; i < lemp->nstate; i++) {
-      for (cfp = lemp->sorted[i]->cfp; cfp; cfp = cfp->next) {
-        if (cfp->status == COMPLETE)
+      for (cfp = lemp->sorted[i]->configs; cfp; cfp = cfp->next) {
+        if (cfp->item->status == COMPLETE)
           continue;
-        for (plp = cfp->fplp; plp; plp = plp->next) {
-          change = SetUnion(plp->cfp->fws, cfp->fws);
+        for (plp = cfp->item->fplp; plp; plp = plp->next) {
+          change = SetUnion(plp->item->fws, cfp->item->fws);
           if (change) {
-            plp->cfp->status = INCOMPLETE;
+            plp->item->status = INCOMPLETE;
             progress = 1;
           }
         }
-        cfp->status = COMPLETE;
+        cfp->item->status = COMPLETE;
       }
     }
   } while (progress);
@@ -202,9 +204,10 @@ FindFollowSets(struct lemon *lemp) {
 void
 FindLinks(struct lemon *lemp) {
   int i;
-  struct config *cfp, *other;
+  struct config_list *cfp;
+  struct config *other;
   struct state *stp;
-  struct plink *plp;
+  struct config_list *plp;
 
   /* Housekeeping detail:
    * Add to every propagate link a pointer back to the state to
@@ -212,8 +215,8 @@ FindLinks(struct lemon *lemp) {
    */
   for (i = 0; i < lemp->nstate; i++) {
     stp = lemp->sorted[i];
-    for (cfp = stp->cfp; cfp; cfp = cfp->next) {
-      cfp->stp = stp;
+    for (cfp = stp->configs; cfp; cfp = cfp->next) {
+      cfp->item->stp = stp;
     }
   }
 
@@ -222,10 +225,10 @@ FindLinks(struct lemon *lemp) {
    */
   for (i = 0; i < lemp->nstate; i++) {
     stp = lemp->sorted[i];
-    for (cfp = stp->cfp; cfp; cfp = cfp->next) {
-      for (plp = cfp->bplp; plp; plp = plp->next) {
-        other = plp->cfp;
-        Plink_add(&other->fplp, cfp);
+    for (cfp = stp->configs; cfp; cfp = cfp->next) {
+      for (plp = cfp->item->bplp; plp; plp = plp->next) {
+        other = plp->item;
+        other->fplp = config_list_insert(cfp->item, &other->fplp);
       }
     }
   }
@@ -241,22 +244,22 @@ FindLinks(struct lemon *lemp) {
  * symbol field is left blank.
  */
 void
-FindRulePrecedences(struct lemon *xp) {
-  struct rule *rp;
-  for (rp = xp->rule; rp; rp = rp->next) {
-    if (rp->precsym == 0) {
+FindRulePrecedences(struct lemon *lemp) {
+  struct rule_list *rp;
+  for (rp = lemp->rules; rp; rp = rp->next) {
+    if (rp->item->precsym == 0) {
       int i, j;
-      for (i = 0; i < rp->nrhs && rp->precsym == 0; i++) {
-        struct symbol *sp = rp->rhs[i];
+      for (i = 0; i < rp->item->nrhs && rp->item->precsym == 0; i++) {
+        struct symbol *sp = rp->item->rhs[i];
         if (sp->type == MULTITERMINAL) {
           for (j = 0; j < sp->nsubsym; j++) {
             if (sp->subsym[j]->prec >= 0) {
-              rp->precsym = sp->subsym[j];
+              rp->item->precsym = sp->subsym[j];
               break;
             }
           }
         } else if (sp->prec >= 0) {
-          rp->precsym = rp->rhs[i];
+          rp->item->precsym = rp->item->rhs[i];
         }
       }
     }
@@ -270,34 +273,32 @@ FindRulePrecedences(struct lemon *xp) {
 void
 FindStates(struct lemon *lemp) {
   struct symbol *sp;
-  struct rule *rp;
-
-  Configlist_init();
+  struct rule_list *rp;
 
   /* Find the start symbol */
   if (lemp->start) {
-    sp = Symbol_find(lemp->start);
+    sp = lookup_symbol(lemp->start);
     if (sp == 0) {
       ErrorMsg(lemp->filename, 0,
                "The specified start symbol \"%s\" is not \
                     in a nonterminal of the grammar.  \"%s\" will be used as the start \
                     symbol instead.",
-               lemp->start, lemp->rule->lhs->name);
+               lemp->start, lemp->rules->item->lhs->name);
       lemp->errorcnt++;
-      sp = lemp->rule->lhs;
+      sp = lemp->rules->item->lhs;
     }
   } else {
-    sp = lemp->rule->lhs;
+    sp = lemp->rules->item->lhs;
   }
 
   /* Make sure the start symbol doesn't occur on the right-hand side of
    * any rule.  Report an error if it does.  (YACC would generate a new
    * start symbol in this case.)
    */
-  for (rp = lemp->rule; rp; rp = rp->next) {
+  for (rp = lemp->rules; rp; rp = rp->next) {
     int i;
-    for (i = 0; i < rp->nrhs; i++) {
-      if (rp->rhs[i] == sp) { /* FIX ME:  Deal with multiterminals */
+    for (i = 0; i < rp->item->nrhs; i++) {
+      if (rp->item->rhs[i] == sp) { /* FIX ME:  Deal with multiterminals */
         ErrorMsg(lemp->filename, 0,
                  "The start symbol \"%s\" occurs on the \
                         right-hand side of a rule. This will result in a parser which \
@@ -312,18 +313,20 @@ FindStates(struct lemon *lemp) {
    * is all rules which have the start symbol as their
    * left-hand side
    */
-  for (rp = sp->rule; rp; rp = rp->nextlhs) {
-    struct config *newcfp;
-    rp->lhsStart = 1;
-    newcfp = Configlist_addbasis(rp, 0);
-    SetAdd(newcfp->fws, 0);
+  struct config_list *state_config_list = NULL;
+  for (rp = sp->rules; rp; rp = rp->next) {
+    struct config *new_config;
+    rp->item->lhsStart = 1;
+    new_config = make_config(rp->item, 0);
+    SetAdd(new_config->fws, 0);
+    state_config_list = config_list_insert(new_config, &state_config_list);
   }
 
   /* Compute the first state.  All other states will be
    * computed automatically during the computation of the first one.
    * The returned pointer to the first state is not used.
    */
-  (void)getstate(lemp);
+  (void)get_state(lemp, &state_config_list);
   return;
 }
 
@@ -332,8 +335,9 @@ FindStates(struct lemon *lemp) {
  */
 static void
 buildshifts(struct lemon *lemp, struct state *stp) {
-  struct config *cfp;  // For looping thru the config closure of "stp"
-  struct config *bcfp; // For the inner loop on config closure of "stp"
+  struct config_list *cfp;  // For looping thru the config closure of "stp"
+  struct config_list *bcfp; // For the inner loop on config closure of "stp"
+  struct config_list *new_cl = NULL;
   struct config *newcfg;
   struct symbol *sp;    // Symbol following the dot in configuration "cfp"
   struct symbol *bsp;   // Symbol following the dot in configuration "bcfp"
@@ -342,39 +346,39 @@ buildshifts(struct lemon *lemp, struct state *stp) {
   /* Each configuration becomes complete after it contibutes to a successor
    * state.  Initially, all configurations are incomplete
    */
-  for (cfp = stp->cfp; cfp; cfp = cfp->next)
-    cfp->status = INCOMPLETE;
+  for (cfp = stp->configs; cfp; cfp = cfp->next)
+    cfp->item->status = INCOMPLETE;
 
   /* Loop through all configurations of the state "stp" */
-  for (cfp = stp->cfp; cfp; cfp = cfp->next) {
-    if (cfp->status == COMPLETE)
+  for (cfp = stp->configs; cfp; cfp = cfp->next) {
+    if (cfp->item->status == COMPLETE)
       continue; // Already used by inner loop
-    if (cfp->dot >= cfp->rp->nrhs)
-      continue;                  // Can't shift this config
-    Configlist_reset();          // Reset the new config set
-    sp = cfp->rp->rhs[cfp->dot]; // Symbol after the dot
+    if (cfp->item->position >= cfp->item->rule->nrhs)
+      continue;                              // Can't shift this config
+    sp = cfp->item->rule->rhs[cfp->item->position]; // Symbol after the dot
 
     /* For every configuration in the state "stp" which has the symbol "sp"
      * following its dot, add the same configuration to the basis set under
      * construction but with the dot shifted one symbol to the right.
      */
     for (bcfp = cfp; bcfp; bcfp = bcfp->next) {
-      if (bcfp->status == COMPLETE)
+      if (bcfp->item->status == COMPLETE)
         continue; /* Already used */
-      if (bcfp->dot >= bcfp->rp->nrhs)
-        continue;                     /* Can't shift this one */
-      bsp = bcfp->rp->rhs[bcfp->dot]; /* Get symbol after dot */
+      if (bcfp->item->position >= bcfp->item->rule->nrhs)
+        continue;                                 /* Can't shift this one */
+      bsp = bcfp->item->rule->rhs[bcfp->item->position]; /* Get symbol after dot */
       if (!same_symbol(bsp, sp))
-        continue;              /* Must be same as for "cfp" */
-      bcfp->status = COMPLETE; /* Mark this config as used */
-      newcfg = Configlist_addbasis(bcfp->rp, bcfp->dot + 1);
-      Plink_add(&newcfg->bplp, bcfp);
+        continue;                    /* Must be same as for "cfp" */
+      bcfp->item->status = COMPLETE; /* Mark this config as used */
+      newcfg = make_config(bcfp->item->rule, bcfp->item->position + 1);
+      newcfg->bplp = config_list_insert(bcfp->item, &newcfg->bplp);
+      new_cl = config_list_insert(newcfg, &new_cl);
     }
 
     /* Get a pointer to the state described by the basis configuration set
      * constructed in the preceding loop
      */
-    newstp = getstate(lemp);
+    newstp = get_state(lemp, &new_cl);
 
     /* The state "newstp" is reached from the state "stp" by a shift action
      * on the symbol "sp"
@@ -392,50 +396,48 @@ buildshifts(struct lemon *lemp, struct state *stp) {
   }
 }
 
-/* Return a pointer to a state which is described by the configuration
- * list which has been built from calls to Configlist_add.
- */
+/* Return a pointer to a state which is described by the configuration.*/
 static struct state *
-getstate(struct lemon *lemp) {
-  struct config *cfp, *bp;
+get_state(struct lemon *lemp, struct config_list **basis) {
   struct state *stp;
 
-  /* Extract the sorted basis of the new state.  The basis was constructed
-   * by prior calls to "Configlist_addbasis()".
-   */
-  Configlist_sortbasis();
-  bp = Configlist_basis();
-
-  /* Get a state with the same basis */
-  stp = State_find(bp);
+  /* Sort basis of the new state. */
+  config_list_sort(basis);
+  stp = lookup_state(*basis);
   if (stp) {
     /* A state with the same basis already exists!  Copy all the follow-set
      * propagation links from the state under construction into the
-     * preexisting state, then return a pointer to the preexisting state
+     * preexisting state, then resymbolturn a pointer to the preexisting state
      */
-    struct config *x, *y;
-    for (x = bp, y = stp->bp; x && y; x = x->bp, y = y->bp) {
-      Plink_copy(&y->bplp, x->bplp);
-      Plink_delete(x->fplp);
-      x->fplp = x->bplp = 0;
+    struct config_list *x;
+    struct config_list const *y;
+    for (x = *basis, y = stp->basis; x && y; x = x->next, y = y->next) {
+      y->item->bplp = config_list_copy(&y->item->bplp, x->item->bplp);
+      clear_config_list(x->item->fplp);
+      x->item->fplp = x->item->bplp = 0;
     }
-    cfp = Configlist_return();
-    Configlist_eat(cfp);
   } else {
     /* This really is a new state.  Construct all the details */
-    Configlist_closure(lemp);  // Compute the configuration closure
-    Configlist_sort();         // Sort the configuration closure
-    cfp = Configlist_return(); // Get a pointer to the config list
-    stp = State_new();         // A new state structure
-    MemoryCheck(stp);
-    stp->bp = bp;                   // Remember the configuration basis
-    stp->cfp = cfp;                 // Remember the configuration closure
+    check_config_list(lemp, *basis);
+    stp = make_state(*basis);       // A new state structure
     stp->statenum = lemp->nstate++; // Every state gets a sequence number
-    stp->actions = NULL;            // No actions, yet.
-    State_insert(stp, stp->bp);     // Add to the state table
     buildshifts(lemp, stp);         // Recursively compute successor states
   }
   return stp;
+}
+
+static void
+check_config_list(struct lemon *lemp, struct config_list *list) {
+  for (; list; list = list->next) {
+    struct rule *rule = list->item->rule;
+    struct symbol *symbol = rule->rhs[list->item->position];
+    if (symbol->type == NONTERMINAL) {
+      if (symbol->rules == 0 && symbol != lemp->errsym) {
+        ErrorMsg(lemp->filename, rule->line, "Nonterminal \"%s\" has no rules.", symbol->name);
+        lemp->errorcnt++;
+      }
+    }
+  }
 }
 
 /* Resolve a conflict between the two given actions.  If the
