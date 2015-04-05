@@ -238,7 +238,7 @@ usage() {
   fprintf(stderr,
           "usage: %s -h\n"
           "usage: %s -V\n"
-          "usage: %s [-bcglpqrs] [-D define] [-T template] grammar\n"
+          "usage: %s [-cgpqrs] [-D define] [-T template] grammar\n"
           "\t-c\tDon't compress the action table.\n"
           "\t-g\tPrint grammar without actions.\n"
           "\t-p\tShow conflicts resolved by precedence rules\n"
