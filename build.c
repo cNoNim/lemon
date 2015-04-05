@@ -90,8 +90,7 @@ FindActions(struct lemon *lemp) {
   for (rp = lemp->rules; rp; rp = rp->next) {
     if (rp->item->canReduce)
       continue;
-    ErrorMsg(lemp->filename, rp->item->ruleline, "This rule can not be reduced.\n");
-    lemp->errorcnt++;
+    ErrorMsg(lemp, rp->item->ruleline, "This rule can not be reduced.\n");
   }
 }
 
@@ -279,12 +278,11 @@ FindStates(struct lemon *lemp) {
   if (lemp->start) {
     sp = lookup_symbol(lemp->start);
     if (sp == 0) {
-      ErrorMsg(lemp->filename, 0,
+      ErrorMsg(lemp, 0,
                "The specified start symbol \"%s\" is not \
                     in a nonterminal of the grammar.  \"%s\" will be used as the start \
                     symbol instead.",
                lemp->start, lemp->rules->item->lhs->name);
-      lemp->errorcnt++;
       sp = lemp->rules->item->lhs;
     }
   } else {
@@ -299,12 +297,11 @@ FindStates(struct lemon *lemp) {
     int i;
     for (i = 0; i < rp->item->nrhs; i++) {
       if (rp->item->rhs[i] == sp) { /* FIX ME:  Deal with multiterminals */
-        ErrorMsg(lemp->filename, 0,
+        ErrorMsg(lemp, 0,
                  "The start symbol \"%s\" occurs on the \
                         right-hand side of a rule. This will result in a parser which \
                         does not work properly.",
                  sp->name);
-        lemp->errorcnt++;
       }
     }
   }
@@ -433,8 +430,7 @@ check_config_list(struct lemon *lemp, struct config_list *list) {
     struct symbol *symbol = rule->rhs[list->item->position];
     if (symbol->type == NONTERMINAL) {
       if (symbol->rules == 0 && symbol != lemp->errsym) {
-        ErrorMsg(lemp->filename, rule->line, "Nonterminal \"%s\" has no rules.", symbol->name);
-        lemp->errorcnt++;
+        ErrorMsg(lemp, rule->line, "Nonterminal \"%s\" has no rules.", symbol->name);
       }
     }
   }

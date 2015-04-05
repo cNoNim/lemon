@@ -93,8 +93,7 @@ Parse(struct lemon *lemp) {
   /* Begin by reading the input file */
   fp = fopen(ps.filename, "rb");
   if (fp == 0) {
-    ErrorMsg(ps.filename, 0, "Can't open this file for reading.");
-    lemp->errorcnt++;
+    ErrorMsg(lemp, 0, "Can't open this file for reading.");
     return;
   }
   fseek(fp, 0, 2);
@@ -102,15 +101,13 @@ Parse(struct lemon *lemp) {
   rewind(fp);
   filebuf = (char *)malloc((size_t)(filesize + 1));
   if (filesize > 100000000 || filebuf == 0) {
-    ErrorMsg(ps.filename, 0, "Input file too large.");
-    lemp->errorcnt++;
+    ErrorMsg(lemp, 0, "Input file too large.");
     fclose(fp);
     return;
   }
   if (fread(filebuf, 1, (size_t)filesize, fp) != filesize) {
-    ErrorMsg(ps.filename, 0, "Can't read in all %d bytes of this file.", filesize);
+    ErrorMsg(lemp, 0, "Can't read in all %d bytes of this file.", filesize);
     free(filebuf);
-    lemp->errorcnt++;
     fclose(fp);
     return;
   }
@@ -156,8 +153,7 @@ Parse(struct lemon *lemp) {
         cp++;
       }
       if (c == 0) {
-        ErrorMsg(ps.filename, startline, "String starting on this line is not terminated before the end of the file.");
-        ps.errorcnt++;
+        ErrorMsg(&ps, startline, "String starting on this line is not terminated before the end of the file.");
         nextcp = cp;
       } else {
         nextcp = cp + 1;
@@ -203,9 +199,8 @@ Parse(struct lemon *lemp) {
         }
       }
       if (c == 0) {
-        ErrorMsg(ps.filename, ps.tokenlineno,
+        ErrorMsg(&ps, ps.tokenlineno,
                  "C code starting on this line is not terminated before the end of the file.");
-        ps.errorcnt++;
         nextcp = cp;
       } else {
         nextcp = cp + 1;
@@ -259,15 +254,13 @@ parseonetoken(struct pstate *psp) {
       psp->state = WAITING_FOR_ARROW;
     } else if (x[0] == '{') {
       if (psp->prevrule == 0) {
-        ErrorMsg(psp->filename, psp->tokenlineno,
+        ErrorMsg(psp, psp->tokenlineno,
                  "There is no prior rule upon which to attach the code \
                             fragment which begins on this line.");
-        psp->errorcnt++;
       } else if (psp->prevrule->code != 0) {
-        ErrorMsg(psp->filename, psp->tokenlineno,
+        ErrorMsg(psp, psp->tokenlineno,
                  "Code fragment beginning on this line is not the first \
                             to follow the previous rule.");
-        psp->errorcnt++;
       } else {
         psp->prevrule->line = psp->tokenlineno;
         psp->prevrule->code = &x[1];
@@ -275,22 +268,18 @@ parseonetoken(struct pstate *psp) {
     } else if (x[0] == '[') {
       psp->state = PRECEDENCE_MARK_1;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Token \"%s\" should be either \"%%\" or a nonterminal name.", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Token \"%s\" should be either \"%%\" or a nonterminal name.", x);
     }
     break;
   case PRECEDENCE_MARK_1:
     if (!isupper(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "The precedence symbol must be a terminal.");
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "The precedence symbol must be a terminal.");
     } else if (psp->prevrule == 0) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "There is no prior rule to assign precedence \"[%s]\".", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "There is no prior rule to assign precedence \"[%s]\".", x);
     } else if (psp->prevrule->precsym != 0) {
-      ErrorMsg(psp->filename, psp->tokenlineno,
+      ErrorMsg(psp, psp->tokenlineno,
                "Precedence mark on this line is not the first \
                         to follow the previous rule.");
-      psp->errorcnt++;
     } else {
       psp->prevrule->precsym = make_symbol(x);
     }
@@ -298,8 +287,7 @@ parseonetoken(struct pstate *psp) {
     break;
   case PRECEDENCE_MARK_2:
     if (x[0] != ']') {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Missing \"]\" on precedence mark.");
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Missing \"]\" on precedence mark.");
     }
     psp->state = WAITING_FOR_DECL_OR_RULE;
     break;
@@ -309,9 +297,8 @@ parseonetoken(struct pstate *psp) {
     } else if (x[0] == '(') {
       psp->state = LHS_ALIAS_1;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Expected to see a \":\" following the LHS symbol \"%s\".",
+      ErrorMsg(psp, psp->tokenlineno, "Expected to see a \":\" following the LHS symbol \"%s\".",
                psp->lhs->name);
-      psp->errorcnt++;
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -320,8 +307,7 @@ parseonetoken(struct pstate *psp) {
       psp->lhsalias = x;
       psp->state = LHS_ALIAS_2;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "\"%s\" is not a valid alias for the LHS \"%s\"\n", x, psp->lhs->name);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "\"%s\" is not a valid alias for the LHS \"%s\"\n", x, psp->lhs->name);
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -329,8 +315,7 @@ parseonetoken(struct pstate *psp) {
     if (x[0] == ')') {
       psp->state = LHS_ALIAS_3;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Missing \")\" following LHS alias name \"%s\".", psp->lhsalias);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Missing \")\" following LHS alias name \"%s\".", psp->lhsalias);
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -338,8 +323,7 @@ parseonetoken(struct pstate *psp) {
     if (x[0] == ':' && x[1] == ':' && x[2] == '=') {
       psp->state = IN_RHS;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Missing \"->\" following: \"%s(%s)\".", psp->lhs->name, psp->lhsalias);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Missing \"->\" following: \"%s(%s)\".", psp->lhs->name, psp->lhsalias);
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -349,7 +333,7 @@ parseonetoken(struct pstate *psp) {
       rp = (struct rule *)calloc(sizeof(struct rule) + sizeof(struct symbol *) * psp->nrhs + sizeof(char *) * psp->nrhs,
                                  1);
       if (rp == 0) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Can't allocate enough memory for this rule.");
+        ErrorMsg(psp, psp->tokenlineno, "Can't allocate enough memory for this rule.");
         psp->errorcnt++;
         psp->prevrule = 0;
       } else {
@@ -374,7 +358,7 @@ parseonetoken(struct pstate *psp) {
       psp->state = WAITING_FOR_DECL_OR_RULE;
     } else if (isalpha(x[0])) {
       if (psp->nrhs >= MAXRHS) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Too many symbols on RHS of rule beginning at \"%s\".", x);
+        ErrorMsg(psp, psp->tokenlineno, "Too many symbols on RHS of rule beginning at \"%s\".", x);
         psp->errorcnt++;
         psp->state = RESYNC_AFTER_RULE_ERROR;
       } else {
@@ -399,14 +383,13 @@ parseonetoken(struct pstate *psp) {
       msp->subsym = (struct symbol **)realloc(msp->subsym, sizeof(struct symbol *) * msp->nsubsym);
       msp->subsym[msp->nsubsym - 1] = make_symbol(&x[1]);
       if (islower(x[1]) || islower(msp->subsym[0]->name[0])) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Cannot form a compound containing a non-terminal");
+        ErrorMsg(psp, psp->tokenlineno, "Cannot form a compound containing a non-terminal");
         psp->errorcnt++;
       }
     } else if (x[0] == '(' && psp->nrhs > 0) {
       psp->state = RHS_ALIAS_1;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Illegal character on RHS of rule: \"%s\".", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Illegal character on RHS of rule: \"%s\".", x);
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -415,9 +398,8 @@ parseonetoken(struct pstate *psp) {
       psp->alias[psp->nrhs - 1] = x;
       psp->state = RHS_ALIAS_2;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "\"%s\" is not a valid alias for the RHS symbol \"%s\"\n", x,
+      ErrorMsg(psp, psp->tokenlineno, "\"%s\" is not a valid alias for the RHS symbol \"%s\"\n", x,
                psp->rhs[psp->nrhs - 1]->name);
-      psp->errorcnt++;
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -425,8 +407,7 @@ parseonetoken(struct pstate *psp) {
     if (x[0] == ')') {
       psp->state = IN_RHS;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Missing \")\" following LHS alias name \"%s\".", psp->lhsalias);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Missing \")\" following LHS alias name \"%s\".", psp->lhsalias);
       psp->state = RESYNC_AFTER_RULE_ERROR;
     }
     break;
@@ -498,20 +479,18 @@ parseonetoken(struct pstate *psp) {
       } else if (strcmp(x, "token_class") == 0) {
         psp->state = WAITING_FOR_CLASS_ID;
       } else {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Unknown declaration keyword: \"%%%s\".", x);
+        ErrorMsg(psp, psp->tokenlineno, "Unknown declaration keyword: \"%%%s\".", x);
         psp->errorcnt++;
         psp->state = RESYNC_AFTER_DECL_ERROR;
       }
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Illegal declaration keyword: \"%s\".", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Illegal declaration keyword: \"%s\".", x);
       psp->state = RESYNC_AFTER_DECL_ERROR;
     }
     break;
   case WAITING_FOR_DESTRUCTOR_SYMBOL:
     if (!isalpha(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Symbol name missing after %%destructor keyword");
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Symbol name missing after %%destructor keyword");
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
       struct symbol *sp = make_symbol(x);
@@ -523,13 +502,12 @@ parseonetoken(struct pstate *psp) {
     break;
   case WAITING_FOR_DATATYPE_SYMBOL:
     if (!isalpha(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Symbol name missing after %%type keyword");
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Symbol name missing after %%type keyword");
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
       struct symbol *sp = lookup_symbol(x);
       if ((sp) && (sp->datatype)) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Symbol %%type \"%s\" already defined", x);
+        ErrorMsg(psp, psp->tokenlineno, "Symbol %%type \"%s\" already defined", x);
         psp->errorcnt++;
         psp->state = RESYNC_AFTER_DECL_ERROR;
       } else {
@@ -549,15 +527,14 @@ parseonetoken(struct pstate *psp) {
       struct symbol *sp;
       sp = make_symbol(x);
       if (sp->prec >= 0) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Symbol \"%s\" has already be given a precedence.", x);
+        ErrorMsg(psp, psp->tokenlineno, "Symbol \"%s\" has already be given a precedence.", x);
         psp->errorcnt++;
       } else {
         sp->prec = psp->preccounter;
         sp->assoc = psp->declassoc;
       }
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Can't assign a precedence to \"%s\".", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Can't assign a precedence to \"%s\".", x);
     }
     break;
   case WAITING_FOR_DECL_ARG:
@@ -614,8 +591,7 @@ parseonetoken(struct pstate *psp) {
       *zBuf = 0;
       psp->state = WAITING_FOR_DECL_OR_RULE;
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Illegal argument to %%%s: %s", psp->declkeyword, x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Illegal argument to %%%s: %s", psp->declkeyword, x);
       psp->state = RESYNC_AFTER_DECL_ERROR;
     }
     break;
@@ -623,14 +599,13 @@ parseonetoken(struct pstate *psp) {
     if (x[0] == '.') {
       psp->state = WAITING_FOR_DECL_OR_RULE;
     } else if (!isupper(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "%%fallback argument \"%s\" should be a token", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "%%fallback argument \"%s\" should be a token", x);
     } else {
       struct symbol *sp = make_symbol(x);
       if (psp->fallback == 0) {
         psp->fallback = sp;
       } else if (sp->fallback) {
-        ErrorMsg(psp->filename, psp->tokenlineno, "More than one fallback assigned to token %s", x);
+        ErrorMsg(psp, psp->tokenlineno, "More than one fallback assigned to token %s", x);
         psp->errorcnt++;
       } else {
         sp->fallback = psp->fallback;
@@ -642,26 +617,23 @@ parseonetoken(struct pstate *psp) {
     if (x[0] == '.') {
       psp->state = WAITING_FOR_DECL_OR_RULE;
     } else if (!isupper(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "%%wildcard argument \"%s\" should be a token", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "%%wildcard argument \"%s\" should be a token", x);
     } else {
       struct symbol *sp = make_symbol(x);
       if (psp->lemp->wildcard == 0) {
         psp->lemp->wildcard = sp;
       } else {
-        ErrorMsg(psp->filename, psp->tokenlineno, "Extra wildcard to token: %s", x);
+        ErrorMsg(psp, psp->tokenlineno, "Extra wildcard to token: %s", x);
         psp->errorcnt++;
       }
     }
     break;
   case WAITING_FOR_CLASS_ID:
     if (!islower(x[0])) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "%%token_class must be followed by an identifier: ", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "%%token_class must be followed by an identifier: ", x);
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else if (lookup_symbol(x)) {
-      ErrorMsg(psp->filename, psp->tokenlineno, "Symbol \"%s\" already used", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "Symbol \"%s\" already used", x);
       psp->state = RESYNC_AFTER_DECL_ERROR;
     } else {
       psp->tkclass = make_symbol(x);
@@ -680,8 +652,7 @@ parseonetoken(struct pstate *psp) {
         x++;
       msp->subsym[msp->nsubsym - 1] = make_symbol(x);
     } else {
-      ErrorMsg(psp->filename, psp->tokenlineno, "%%token_class argument \"%s\" should be a token", x);
-      psp->errorcnt++;
+      ErrorMsg(psp, psp->tokenlineno, "%%token_class argument \"%s\" should be a token", x);
       psp->state = RESYNC_AFTER_DECL_ERROR;
     }
     break;

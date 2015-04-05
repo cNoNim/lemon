@@ -631,9 +631,8 @@ translate_code(struct lemon *lemp, struct rule *rp) {
 
   /* Check to make sure the LHS has been used */
   if (rp->lhsalias && !lhsused) {
-    ErrorMsg(lemp->filename, rp->ruleline, "Label \"%s\" for \"%s(%s)\" is never used.", rp->lhsalias, rp->lhs->name,
+    ErrorMsg(lemp, rp->ruleline, "Label \"%s\" for \"%s(%s)\" is never used.", rp->lhsalias, rp->lhs->name,
              rp->lhsalias);
-    lemp->errorcnt++;
   }
 
   /* Generate destructor code for RHS symbols which are not used in the
@@ -641,9 +640,8 @@ translate_code(struct lemon *lemp, struct rule *rp) {
    */
   for (i = 0; i < rp->nrhs; i++) {
     if (rp->rhsalias[i] && !used[i]) {
-      ErrorMsg(lemp->filename, rp->ruleline, "Label %s for \"%s(%s)\" is never used.", rp->rhsalias[i],
+      ErrorMsg(lemp, rp->ruleline, "Label %s for \"%s(%s)\" is never used.", rp->rhsalias[i],
                rp->rhs[i]->name, rp->rhsalias[i]);
-      lemp->errorcnt++;
     } else if (rp->rhsalias[i] == 0) {
       if (has_destructor(rp->rhs[i], lemp)) {
         append_str("  yy_destructor(yypParser,%d,&yymsp[%d].minor);\n", 0, rp->rhs[i]->index, i - rp->nrhs + 1);

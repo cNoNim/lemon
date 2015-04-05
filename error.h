@@ -3,7 +3,10 @@
 
 #include "log.h"
 
-#define ErrorMsg(filename, lineno, format, ...) lprintf(LERROR, "%s:%d:"#format, filename, lineno, ## __VA_ARGS__)
+#define ErrorMsg(state, lineno, format, ...) do { \
+    lprintf(LERROR, "%s:%d:"#format, (state)->filename, lineno, ## __VA_ARGS__); \
+    (state)->errorcnt++; \
+  } while(0)
 
 #define MemoryCheck(X)                              \
   if (!(X)) {                                       \
