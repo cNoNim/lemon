@@ -6,7 +6,7 @@
 #define ErrorMsg(filename, lineno, format, ...) lprintf(LERROR, "%s:%d:"#format, filename, lineno, ## __VA_ARGS__)
 
 #define MemoryCheck(X)                              \
-  if (!(X)) {                                         \
+  if (!(X)) {                                       \
     lprintf(LFATAL, "Out of memory.  Aborting..."); \
   }
 

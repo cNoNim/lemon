@@ -1,71 +1,62 @@
 #include "action.h"
 #include "error.h"
 #include "msort.h"
-#include "table.h"
+#include "rule.h"
+#include "symbol.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-static int actioncmp(struct action *, struct action *);
+static void *action_list_get_next(void const *list);
+static void action_list_set_next(void *list, void *next);
+static int action_list_compare(void const *left, void const *right);
 
-/* Allocate a new parser action */
-struct action *
-Action_new(void) {
-  static struct action *freelist = 0;
-  struct action *newaction;
-
-  if (freelist == 0) {
-    int i;
-    size_t amt = 100;
-    freelist = (struct action *)calloc(amt, sizeof(struct action));
-    MemoryCheck(freelist);
-    for (i = 0; i < amt - 1; i++)
-      freelist[i].next = &freelist[i + 1];
-    freelist[amt - 1].next = 0;
-  }
-  newaction = freelist;
-  freelist = freelist->next;
-  return newaction;
+struct action_list *
+action_list_insert(struct action *action, struct action_list **list) {
+  struct action_list *new_list = (struct action_list *)malloc(sizeof(struct action_list));
+  new_list->item = action;
+  new_list->next = *list;
+  *list = new_list;
+  return new_list;
 }
 
 void
-Action_add(struct action **app, enum e_action type, struct symbol *sp, char *arg) {
-  struct action *newaction;
-  newaction = Action_new();
-  newaction->next = *app;
-  *app = newaction;
-  newaction->type = type;
-  newaction->sp = sp;
-  if (type == SHIFT) {
-    newaction->x.stp = (struct state *)arg;
-  } else {
-    newaction->x.rp = (struct rule *)arg;
-  }
+action_list_sort(struct action_list **list) {
+  *list = mergesort(*list, action_list_get_next, action_list_set_next, action_list_compare);
 }
 
-/* Sort parser actions */
 struct action *
-Action_sort(struct action *ap) {
-  ap = (struct action *)msort((char *)ap, (char **)&ap->next, (int (*)(const char *, const char *))actioncmp);
-  return ap;
+make_action(struct symbol *symbol, enum action_type type, void *arg) {
+  struct action *new_action = malloc(sizeof(struct action));
+  MemoryCheck(new_action);
+  new_action->sp = symbol;
+  new_action->type = type;
+  if (type == SHIFT)
+    new_action->x.stp = (struct state *)arg;
+  else
+    new_action->x.rp = (struct rule *)arg;
 }
 
-/* Compare two actions for sorting purposes.  Return negative, zero, or
- * positive if the first action is less than, equal to, or greater than
- * the first
- */
+static void *
+action_list_get_next(void const *list) {
+  return ((struct action_list const *)list)->next;
+}
+
+static void
+action_list_set_next(void *list, void *next) {
+  ((struct action_list *)list)->next = next;
+}
+
 static int
-actioncmp(struct action *ap1, struct action *ap2) {
-  int rc;
-  rc = ap1->sp->index - ap2->sp->index;
-  if (rc == 0) {
-    rc = (int)ap1->type - (int)ap2->type;
-  }
-  if (rc == 0 && ap1->type == REDUCE) {
-    rc = ap1->x.rp->index - ap2->x.rp->index;
-  }
-  if (rc == 0) {
-    rc = (int)(ap2 - ap1);
-  }
+action_list_compare(void const *left, void const *right) {
+  struct action *la = ((struct action_list *)left)->item;
+  struct action *ra = ((struct action_list *)right)->item;
+  int rc = la->sp->index - ra->sp->index;
+  if (rc == 0)
+    rc = (int)la->type - (int)ra->type;
+  if (rc == 0 && la->type == REDUCE)
+    rc = la->x.rp->index - ra->x.rp->index;
+  if (rc == 0)
+    rc = (int)(ra - la);
   return rc;
 }
